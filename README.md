@@ -32,3 +32,13 @@ Potrzebne informacje od dostawcy:
 - jednostka ceny (PLN/g, USD/oz itd.),
 - symbole złota, srebra, platyny i palladu,
 - limity zapytań.
+
+## Powiązanie projektu
+
+- Projekt lokalny: „Skup złota Gorzów”; właściwe repozytorium znajduje się w podfolderze `repozytorium`.
+- Repozytorium GitHub: https://github.com/angsm111-dot/nowa-skup-zlota-gorzow (gałąź `main`). Poprzednia nazwa: `skup-zlota-gorzow`.
+- Cloudflare Worker: `skup-zlota-gorzow`.
+- Strona: https://skup-zlota-gorzow.angsm111.workers.dev
+- Panel: https://skup-zlota-gorzow.angsm111.workers.dev/admin
+
+Zmiana nazwy repozytorium nie oznacza zmiany nazwy Workera ani adresu strony. Przed pracą na lokalnej kopii należy pobrać aktualną gałąź `main`.
