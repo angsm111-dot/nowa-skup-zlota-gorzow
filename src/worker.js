@@ -334,7 +334,7 @@ async function adminBoard(request,env,ctx){
   if(request.method==="PUT"&&!env.PRICE_STORE)return json({error:"Brak magazynu ustawień. Nie zapisano zmian."},503);
   const response=await publicPrices(env,ctx),payload=await response.json();
   const current=mergeBoard(await readJson(env,"config:board:v1"),payload.products,payload.metals);
-  if(request.method==="GET")return json({config:current,products:payload.products,metals:payload.metals},200,{"cache-control":"no-store"});
+  if(request.method==="GET")return json({config:current,products:payload.products,metals:payload.metals,fetchedAt:payload.fetchedAt},200,{"cache-control":"no-store"});
   try{
     const input=await request.json();
     if((input.updatedAt??null)!==(current.updatedAt??null))return json({error:"Ustawienia zmieniono w innym oknie. Pobierz je ponownie."},409);
