@@ -25,7 +25,7 @@ test('Defaults group weights under one stable number and classify selected histo
  const {call}=instance(),data=await(await call('/api/prices')).json();
  const rows=data.board.rows;
  const weights=rows.filter(p=>p.family==='gold-family-krugerrand');assert.equal(weights.length,4);assert.ok(weights.every(p=>p.number===1&&p.label==='Krugerrand'));
- assert.equal(rows.find(p=>p.id==='gold-russia-5-ruble').section,'historical');assert.equal(rows.find(p=>p.id==='gold-russia-5-ruble').number,12);
+ assert.equal(rows.find(p=>p.id==='gold-russia-5-ruble').section,'historical');assert.equal(rows.find(p=>p.id==='gold-russia-5-ruble').number,5);
  assert.equal(rows.find(p=>p.id==='gold-chinese-panda-1oz').section,'other');
 });
 test('Section switches hide prices without removing products; hidden rows are omitted',async()=>{
@@ -34,10 +34,12 @@ test('Section switches hide prices without removing products; hidden rows are om
  let board=buildBoard(config,data.products,data.metals),row=board.rows.find(p=>p.id===id);assert.equal(row.buy,null);assert.equal(typeof row.sell,'number');
  config.entries[id].visible=false;assert.ok(!buildBoard(config,data.products,data.metals).rows.some(p=>p.id===id));
 });
-test('Duplicate numbers across the three gold coin categories are rejected',async()=>{
+test('Each gold column starts at one and legacy duplicate numbers are normalized',async()=>{
  const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
- config.entries['gold-russia-5-ruble'].number=1;
- assert.throws(()=>validateBoard(config,config,data.products),/Powtórzony numer/);
+ for(const e of Object.values(config.entries))e.number=63;
+ const saved=validateBoard(config,config,data.products),board=buildBoard(saved,data.products,data.metals);
+ for(const section of ['bullion','historical','other'])assert.equal(board.rows.find(r=>r.section===section).number,1);
+ assert.equal(saved.entries['gold-russia-5-ruble'].number,5);
 });
 test('Separate sections can reuse numbers and negative markup is rejected',async()=>{
  const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
@@ -112,19 +114,26 @@ test('Thirty-minute session expires for board and pricing; fresh login restores 
  }finally{Date.now=realNow}
  const renewed=await login();assert.equal((await call('/api/admin/board',{headers:{cookie:renewed}})).status,200);
 });
-test('First activation gets 19 after 18 when the remaining gold numbers are free',async()=>{
+test('Adding, hiding and moving a coin renumbers only its column without gaps',async()=>{
  const {call}=instance(),data=await(await call('/api/prices')).json(),current=mergeBoard(null,data.products,data.metals),id='gold-russia-7-5-ruble';
- for(const e of Object.values(current.entries))if(['bullion','historical','other'].includes(e.section)&&e.number>18){e.visible=false;e.numberAssigned=false}
  const input=structuredClone(current);input.entries[id].visible=true;
- const saved=validateBoard(input,current,data.products);
- assert.equal(saved.entries[id].number,19);assert.equal(saved.entries[id].numberAssigned,true);
- for(const [key,e] of Object.entries(current.entries))if(key!==id&&e.numberAssigned&&['bullion','historical','other'].includes(e.section))assert.equal(saved.entries[key].number,e.number);
+ let saved=validateBoard(input,current,data.products);assert.equal(saved.entries[id].number,12);
+ for(const [key,e] of Object.entries(current.entries))if(e.section!=='historical')assert.equal(saved.entries[key].number,e.number);
+ let next=structuredClone(saved);next.entries[id].order=0;saved=validateBoard(next,saved,data.products);
+ let rows=buildBoard(saved,data.products,data.metals).rows.filter(r=>r.section==='historical');
+ assert.equal(rows[0].id,id);assert.deepEqual(rows.map(r=>r.number),Array.from({length:rows.length},(_,i)=>i+1));
+ next=structuredClone(saved);next.entries[id].visible=false;saved=validateBoard(next,saved,data.products);
+ rows=buildBoard(saved,data.products,data.metals).rows.filter(r=>r.section==='historical');
+ assert.deepEqual(rows.map(r=>r.number),Array.from({length:rows.length},(_,i)=>i+1));
 });
-test('Gold numbering reserves other categories and keeps an assigned number after hiding',async()=>{
- const {call}=instance(),data=await(await call('/api/prices')).json(),current=mergeBoard(null,data.products,data.metals),id='gold-russia-7-5-ruble';
- const input=structuredClone(current);input.entries[id].visible=true;
- let saved=validateBoard(input,current,data.products);assert.equal(saved.entries[id].number,21);
- let next=structuredClone(saved);next.entries[id].visible=false;saved=validateBoard(next,saved,data.products);
- next=structuredClone(saved);next.entries[id].visible=true;
- assert.equal(validateBoard(next,saved,data.products).entries[id].number,21);
+test('Every column has consecutive numbers and bullion weights retain a shared number',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
+ config.entries['gold-russia-5-ruble'].section='other';
+ const saved=validateBoard(config,config,data.products),rows=buildBoard(saved,data.products,data.metals).rows;
+ for(const section of Object.keys(config.sections)){
+  const unique=[...new Set(rows.filter(r=>r.section===section).map(r=>r.number))];
+  assert.deepEqual(unique,Array.from({length:unique.length},(_,i)=>i+1));
+ }
+ const krugerrand=rows.filter(r=>r.family==='gold-family-krugerrand');
+ assert.equal(krugerrand.length,4);assert.ok(krugerrand.every(r=>r.number===1));
 });

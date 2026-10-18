@@ -65,3 +65,7 @@ Sesja nadal wygasa po 30 minutach. Gdy uwierzytelnione żądanie panelu cen lub 
 Pozycje nieaktywowane na tablicy mają `numberAssigned: false`; pole numeru w panelu pokazuje „Automatycznie”. Przy pierwszym włączeniu nowa rodzina monety otrzymuje numer po najwyższym przydzielonym numerze we wspólnej numeracji trzech kategorii złotych monet. Ukryte, ale wcześniej przydzielone numery pozostają zarezerwowane. Dodatkowa waga znanej rodziny dziedziczy wspólny numer rodziny, zgodnie z aktualnym ustaleniem.
 
 Serwer waliduje i przydziela numer także wtedy, gdy starsza wersja interfejsu nie zrobiła tego automatycznie. Istniejące numery nie są masowo zmieniane. Przycisk „Następny wolny” pozwala skorygować wcześniej zapisany techniczny numer pojedynczej rodziny (np. 63); wymaga zatwierdzenia zapisem sekcji. Numery 19 i 20 w innej kategorii pozostają zajęte — kolejny numer będzie wtedy 21, nie 19.
+
+
+## Numeracja kolumn — aktualizacja
+Każda z siedmiu kolumn ma niezależną automatyczną numerację od 1, według kolejności widocznych pozycji. Wagi jednej złotej monety mają wspólny numer. Dodanie, ukrycie, zmiana kategorii lub przesunięcie przelicza numery w danej kolumnie. Ta zasada zastępuje wcześniejszą wspólną numerację i rezerwowanie numerów. W panelu numer jest tylko do odczytu; kolejność zmienia się przyciskami Wyżej/Niżej. Stare zapisane ustawienia są przeliczane przy odczycie, bez zmiany cen i kolejności.

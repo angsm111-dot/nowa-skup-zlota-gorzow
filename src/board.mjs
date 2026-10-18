@@ -6,10 +6,22 @@ const families = {
 };
 const history = ['germany-20-mark','denmark-20-kroner','austria-4-ducat','austria-1-ducat','russia-5-ruble','russia-10-ruble','russia-15-ruble','germany-10-mark','germany-5-mark','france-switzerland-20-franc','france-switzerland-10-franc'];
 const clean = value => String(value ?? '').trim().slice(0,120);
+// Numbers describe the current visible order within each independent column.
 export function renumberBars(config){
-  for(const section of ['goldBars','silverBars']){
-    const list=Object.entries(config.entries).filter(([,entry])=>entry.section===section).sort((a,b)=>Number(b[1].visible)-Number(a[1].visible)||(a[1].order??a[1].number*1000)-(b[1].order??b[1].number*1000)||a[0].localeCompare(b[0]));
-    list.forEach(([,entry],index)=>entry.number=index+1);
+  for(const section of BOARD_SECTIONS){
+    const groups=new Map();
+    const list=Object.entries(config.entries).filter(([,entry])=>entry.section===section).sort((a,b)=>(a[1].order??a[1].number*1000)-(b[1].order??b[1].number*1000)||a[0].localeCompare(b[0]));
+    for(const [id,entry] of list){
+      const key=['bullion','historical','other'].includes(section)?entry.family:id;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push(entry);
+    }
+    let number=0;
+    for(const entries of groups.values()){
+      const visible=entries.some(entry=>entry.visible);
+      if(visible)number++;
+      for(const entry of entries){entry.number=visible?number:1;entry.numberAssigned=visible;}
+    }
   }
   return config;
 }
@@ -48,20 +60,9 @@ export function mergeBoard(stored, products, metals) {
   return renumberBars({...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries:Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>[id,{...value,...stored.entries?.[id],numberAssigned:stored.entries?.[id]?.numberAssigned??(stored.entries?.[id]?stored.entries[id].visible===true||stored.entries[id].number!==value.number:value.numberAssigned)}]))});
 }
 export function assignNewCoinNumbers(input,current){
-  const result=structuredClone(input),assigned=new Map(),reserved=new Set();
-  for(const [id,previous] of Object.entries(current.entries)){
-    const entry=result.entries[id]??structuredClone(previous);result.entries[id]=entry;
-    if(!['bullion','historical','other'].includes(entry.section))continue;
-    entry.numberAssigned=previous.numberAssigned===true||entry.numberAssigned===true||entry.number!==previous.number;
-    if(entry.numberAssigned){assigned.set(entry.family,entry.number);if(Number.isInteger(entry.number)&&entry.number>0)reserved.add(entry.number)}
-  }
-  for(const entry of Object.values(result.entries)){
-    if(!['bullion','historical','other'].includes(entry.section)||!entry.visible||entry.numberAssigned)continue;
-    let number=assigned.get(entry.family);
-    if(number===undefined){number=Math.max(0,...reserved)+1;if(number>9999)throw Error('Brak wolnego numeru gablotowego');assigned.set(entry.family,number);reserved.add(number)}
-    for(const member of Object.values(result.entries))if(['bullion','historical','other'].includes(member.section)&&member.family===entry.family){member.number=number;member.numberAssigned=true}
-  }
-  return result;
+  const result=structuredClone(input);
+  for(const [id,entry] of Object.entries(current.entries))result.entries[id]??=structuredClone(entry);
+  return renumberBars(result);
 }
 export function validateBoard(input, current, products) {
   const fail=message=>{throw Error(message)};
@@ -82,11 +83,11 @@ export function validateBoard(input, current, products) {
     if(!entry.label||!entry.family)fail('Uzupełnij nazwę i identyfikator rodziny');
     if(!['bullion','goldBars'].includes(entry.section))entry.delivery=false;
     if(entry.visible){
-      const scope=['bullion','historical','other'].includes(entry.section)?'goldCoins':entry.section;
-      const key=scope+':'+entry.number, owner=scope==='goldCoins'?entry.family:id;
+      const scope=entry.section;
+      const key=scope+':'+entry.number, owner=['bullion','historical','other'].includes(scope)?entry.family:id;
       if(!['goldBars','silverBars'].includes(scope)&&numbers.has(key)&&numbers.get(key)!==owner)fail('Powtórzony numer gablotowy '+entry.number);
       numbers.set(key,owner);
-      if(scope==='goldCoins'){
+      if(['bullion','historical','other'].includes(scope)){
         const signature=entry.section+'|'+entry.number+'|'+entry.label;
         if(familiesSeen.has(entry.family)&&familiesSeen.get(entry.family)!==signature)fail('Wagi tej samej monety muszą mieć tę samą kategorię, nazwę i numer');
         familiesSeen.set(entry.family,signature);
@@ -108,6 +109,11 @@ export function buildBoard(config, products, metals) {
     rows.push({id,section:entry.section,order:entry.order??entry.number*1000,number:entry.number,label:entry.label,family:entry.family,weight:entry.weight,buy:price(entry.buy&&section.buy,buy),sell:price(entry.sell&&section.sell,base*(1+entry.sellPercent/100)),delivery:price(entry.delivery&&section.delivery&&['bullion','goldBars'].includes(entry.section),base*(1+entry.deliveryPercent/100)),fineWeight:p?.fineWeight??0});
   }
   rows.sort((a,b)=>a.order-b.order||a.number-b.number||b.fineWeight-a.fineWeight||a.id.localeCompare(b.id));
-  const counts={goldBars:0,silverBars:0};for(const row of rows)if(row.section in counts)row.number=++counts[row.section];
+  const counts=new Map(),groups=new Map();
+  for(const row of rows){
+    const key=row.section+':'+(['bullion','historical','other'].includes(row.section)?row.family:row.id);
+    if(!groups.has(key)){const next=(counts.get(row.section)??0)+1;counts.set(row.section,next);groups.set(key,next)}
+    row.number=groups.get(key);
+  }
   return {version:1,deliveryDays:config.deliveryDays,sections:config.sections,updatedAt:config.updatedAt??null,rows};
 }

@@ -2,7 +2,7 @@
   const titles={bullion:'Złote monety bulionowe',historical:'Złote monety historyczne',other:'Złote monety pozostałe',goldBars:'Złote sztabki LBMA',scrap:'Złom złota',silverCoins:'Srebrne monety',silverBars:'Srebrne sztabki'};
   const panel=document.querySelector('#panel'), container=document.createElement('section');
   container.className='board-admin';
-  container.innerHTML='<h2>Tablica w lokalu</h2><p>Osobne ustawienia tablicy. Ceny skupu na dotychczasowych stronach pozostają bez zmian. Sprzedaż i dostawa = wartość czystego kruszcu według spot + narzut.</p><button type="button" id="board-load" aria-controls="board-editor" aria-expanded="false">Otwórz ustawienia tablicy</button> <button type="button" id="board-close" disabled>Zamknij ustawienia tablicy</button><div id="board-editor" hidden><label>Termin dostawy (dni) <input id="board-days" type="number" min="1" max="365" required></label><p>Wspólna numeracja trzech sekcji złotych monet. Nowa moneta otrzymuje kolejny wolny numer przy pierwszym włączeniu; ukrycie i ponowne pokazanie zachowuje numer. Wagi jednej monety mają wspólny numer i nazwę. Pozostałe sekcje mają własną numerację. Widoczne sztabki są numerowane od 1 według kolejności.</p><label>Sekcja <select id="board-section"></select></label><label>Szukaj produktu <input id="board-search" type="search" placeholder="np. Krugerrand 1 oz"></label><div id="board-section-options"></div><div class="board-table-wrap"><table><thead><tr><th>Produkt w katalogu</th><th>Kolejność</th><th>Na tablicy</th><th>Kategoria</th><th>Numer</th><th>Nazwa na tablicy</th><th>Grupa monety / waga</th><th>Skup</th><th>Sprzedaż / narzut</th><th>Dostawa / narzut</th></tr></thead><tbody id="board-rows"></tbody></table></div></div><p id="board-message" role="status" aria-live="polite"></p>';
+  container.innerHTML='<h2>Tablica w lokalu</h2><p>Osobne ustawienia tablicy. Ceny skupu na dotychczasowych stronach pozostają bez zmian. Sprzedaż i dostawa = wartość czystego kruszcu według spot + narzut.</p><button type="button" id="board-load" aria-controls="board-editor" aria-expanded="false">Otwórz ustawienia tablicy</button> <button type="button" id="board-close" disabled>Zamknij ustawienia tablicy</button><div id="board-editor" hidden><label>Termin dostawy (dni) <input id="board-days" type="number" min="1" max="365" required></label><p>Każda kolumna ma osobną numerację od 1, zgodną z kolejnością widocznych pozycji. Wagi jednej złotej monety mają wspólny numer. Przesuwanie, ukrywanie i dodawanie pozycji automatycznie przelicza numery w danej kolumnie.</p><label>Sekcja <select id="board-section"></select></label><label>Szukaj produktu <input id="board-search" type="search" placeholder="np. Krugerrand 1 oz"></label><div id="board-section-options"></div><div class="board-table-wrap"><table><thead><tr><th>Produkt w katalogu</th><th>Kolejność</th><th>Na tablicy</th><th>Kategoria</th><th>Numer</th><th>Nazwa na tablicy</th><th>Grupa monety / waga</th><th>Skup</th><th>Sprzedaż / narzut</th><th>Dostawa / narzut</th></tr></thead><tbody id="board-rows"></tbody></table></div></div><p id="board-message" role="status" aria-live="polite"></p>';
   panel.querySelector('#tabs').before(container);
   const saveButton=document.createElement('button');saveButton.type='button';saveButton.id='board-save';saveButton.hidden=true;
   const footerMessage=document.createElement('span');footerMessage.id='board-save-status';footerMessage.setAttribute('role','status');footerMessage.setAttribute('aria-live','polite');footerMessage.hidden=true;
@@ -30,20 +30,19 @@
     if(target<0||target>=units.length)return;
     [units[index],units[target]]=[units[target],units[index]];
     units.forEach((ids,index)=>ids.forEach(key=>state.entries[key].order=index*1000));
-    changed=true;render();message('Zmieniono kolejność. '+(['goldBars','silverBars'].includes(entry.section)?'Numery sztabek dopasowano do kolejności.':'Numery monet pozostają bez zmian.')+' Zapisz sekcję na dolnej belce.');
+    changed=true;render();message('Zmieniono kolejność. '+(['goldBars','silverBars'].includes(entry.section)?'Numery sztabek dopasowano do kolejności.':'Numery dopasowano do kolejności.')+' Zapisz sekcję na dolnej belce.');
   }
   function renumberBars(){
-    for(const section of ['goldBars','silverBars'])Object.entries(state.entries).filter(([,entry])=>entry.section===section).sort((a,b)=>Number(b[1].visible)-Number(a[1].visible)||entryOrder(a[1])-entryOrder(b[1])||a[0].localeCompare(b[0])).forEach(([,entry],index)=>entry.number=index+1);
+    for(const section of Object.keys(state.sections)){
+      let number=0;
+      for(const ids of unitsInSection(section)){
+        const visible=ids.some(id=>state.entries[id].visible);
+        if(visible)number++;
+        for(const id of ids){state.entries[id].number=visible?number:1;state.entries[id].numberAssigned=visible;}
+      }
+    }
   }
-  function assignCoinNumber(entry,force=false){
-    if(!force&&entry.numberAssigned)return;
-    const gold=Object.values(state.entries).filter(e=>['bullion','historical','other'].includes(e.section));
-    const assigned=gold.filter(e=>e.numberAssigned&&e.family!==entry.family);
-    const sibling=force?null:gold.find(e=>e!==entry&&e.family===entry.family&&e.numberAssigned);
-    const number=sibling?.number??Math.max(0,...assigned.map(e=>e.number))+1;
-    if(number>9999){message('Brak wolnego numeru gablotowego.');return}
-    for(const member of gold)if(member.family===entry.family){member.number=number;member.numberAssigned=true}
-  }
+  function assignCoinNumber(){renumberBars()}
   function render(){
     renumberBars();
     saveButton.textContent=selected==='all'?'Zapisz tablicę — wszystkie sekcje':'Zapisz tablicę — '+titles[selected].toLocaleLowerCase('pl-PL');
@@ -65,10 +64,11 @@
       select.onchange=()=>{const family=entry.family;for(const item of Object.values(state.entries))if(item.family===family&&categories.includes(item.section))item.section=select.value;changed=true;message('Zmieniono kategorię. Zapisz ustawienia.');render()};cell(select);
       const sync=(key,value)=>{const oldFamily=entry.family;entry[key]=value;if(categories.length>1&&['number','label'].includes(key))for(const other of Object.values(state.entries))if(other.family===oldFamily){other[key]=value;if(key==='number')other.numberAssigned=true;}render()};
       const isCoin=categories.length>1;
-      const n=input(entry.number,'number',v=>{if(v>=1)sync('number',v)},'Numer gablotowy');n.min=1;n.max=9999;n.required=!isCoin||entry.numberAssigned||entry.visible;
+      const n=input(entry.number,'number',v=>{if(v>=1)sync('number',v)},'Numer na tablicy');n.min=1;n.max=9999;n.required=!isCoin||entry.numberAssigned||entry.visible;
       if(isCoin&&!entry.numberAssigned){n.value='';n.placeholder='Automatycznie';}
-      if(['goldBars','silverBars'].includes(entry.section)){n.readOnly=true;n.title='Numer wynika z kolejności widocznych sztabek';}
-      if(isCoin){const next=document.createElement('button');next.type='button';next.className='board-next-number';next.textContent='Następny wolny';next.title='Nadaj tej monecie kolejny wolny numer, bez zmiany innych monet';next.onclick=()=>{assignCoinNumber(entry,true);changed=true;render();message('Nadano numer '+entry.number+'. Zapisz ustawienia tablicy.')};cell(n,next)}else cell(n);
+      n.readOnly=true;n.title='Numer wynika z kolejności widocznych pozycji w tej kolumnie';
+      if(!entry.visible){n.value='';n.placeholder='Ukryta';}
+      cell(n);
       const name=input(entry.label,'text',v=>sync('label',v),'Nazwa na tablicy');name.required=true;name.maxLength=120;cell(name);
       const family=document.createElement('select');family.setAttribute('aria-label','Grupa monety');
       const choices=new Map();for(const e of Object.values(state.entries).filter(e=>['bullion','historical','other'].includes(e.section)))if(!choices.has(e.family)||e.numberAssigned)choices.set(e.family,e);
