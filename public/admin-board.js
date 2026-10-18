@@ -72,7 +72,7 @@
       const name=input(entry.label,'text',v=>sync('label',v),'Nazwa na tablicy');name.required=true;name.maxLength=120;cell(name);
       const family=document.createElement('select');family.setAttribute('aria-label','Grupa monety');
       const choices=new Map();for(const e of Object.values(state.entries).filter(e=>['bullion','historical','other'].includes(e.section)))if(!choices.has(e.family)||e.numberAssigned)choices.set(e.family,e);
-      for(const [key,item] of choices){const o=document.createElement('option');o.value=key;o.textContent=(item.numberAssigned?item.number+'. ':'Bez numeru — ')+item.label;o.selected=key===entry.family;family.append(o)}
+      for(const [key,item] of [...choices].sort(([,a],[,b])=>Number(b.numberAssigned)-Number(a.numberAssigned)||(a.numberAssigned?a.number-b.number:0)||titles[a.section].localeCompare(titles[b.section],'pl')||a.label.localeCompare(b.label,'pl',{numeric:true}))){const o=document.createElement('option');o.value=key;o.textContent=(item.numberAssigned?item.number+'. ':'Bez numeru — ')+item.label;o.selected=key===entry.family;family.append(o)}
       family.onchange=()=>{const target=choices.get(family.value);entry.family=family.value;entry.number=target.number;entry.numberAssigned=target.numberAssigned;entry.label=target.label;entry.section=target.section;changed=true;render();message('Przypisano wagę do grupy monety. Zapisz ustawienia.')};
       const weight=input(entry.weight,'text',v=>entry.weight=v,'Waga wyświetlana');weight.maxLength=120;
       if(categories.length>1)cell(family,weight);else cell(document.createTextNode('—'));
