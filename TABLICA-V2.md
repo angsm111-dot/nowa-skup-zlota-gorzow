@@ -13,7 +13,7 @@ Sekcja **Tablica w lokalu** w `/admin` ma własny przycisk zapisu. Zapisuje `con
 - Kategorie złotych monet: bulionowe, historyczne, pozostałe. Zmiana kategorii grupy przenosi wszystkie jej wagi.
 - Wagi jednej monety mają wspólną grupę, nazwę i numer. Pozostałe sekcje mają własne numery.
 - Numery nie są indeksami widoku. Istniejące zapisane numery zostają po dodaniu nowych produktów.
-- Nowe produkty własne są początkowo ukryte na tablicy. Należy przypisać kategorię, numer i widoczność. Dotychczasowy cennik i kalkulator mają niezależną widoczność katalogową.
+- Nowe produkty własne są początkowo ukryte na tablicy. Należy przypisać kategorię, numer i widoczność. Dotychczasowy cennik i kalkulator mają niezależną widoczność katalogową. Pozycję ukrytą w katalogu można pokazać na tablicy przełącznikiem „Pokaż”; nie zmienia to jej widoczności na innych stronach.
 - Osobne przełączniki skupu, sprzedaży i dostawy dla pozycji oraz sekcji.
 - Dostawa tylko dla bulionowych złotych monet i złotych sztabek; wspólny edytowalny termin.
 - Sprzedaż i dostawa to wartość czystego metalu według spot plus osobny narzut. Początkowo są wyłączone; nie publikujemy domyślnych cen sprzedaży bez ustawienia przez operatora.
@@ -41,3 +41,9 @@ Tablica jest w osobnym repozytorium `angsm111-dot/TEST-b6698`, folder `tablica-v
 Po wdrożeniu sprawdzić stare strony srebrne, cennik skupu, nowe kategorie i przełączniki. Nie wpisywać cen próbnych do produkcji. Przy powrocie przywrócić kod z gałęzi kopii; stare widoki ignorują osobny klucz `config:board:v1`. Nie usuwać ani nie zastępować całej przestrzeni KV.
 
 Brakujące produkty, stare ręczne ceny sprzedaży i dane WordPressa nie zostały zmigrowane: potrzebny jest ich eksport. Tablica nie zgaduje tych cen.
+
+## Dalsze poprawki interfejsu
+
+Przycisk zapisu tablicy znajduje się na dolnej belce obok publikacji cennika. Zapisuje wybraną sekcję (wraz z przeniesionymi z niej produktami i terminem dostawy); dla widoku „Wszystkie produkty” zapisuje wszystkie sekcje. Niezapisane zmiany innych sekcji są zachowane w edytorze.
+
+Test przeglądarkowy obejmuje zapis sekcji bez zapisywania zmian z innej sekcji oraz włączenie Kangura 1/20 i 1/25 oz, gdy te wagi pozostają ukryte na dotychczasowych stronach. Tablica ma większe dekoracyjne ilustracje sekcji na przezroczystym tle; nie są zdjęciami konkretnych egzemplarzy z oferty.

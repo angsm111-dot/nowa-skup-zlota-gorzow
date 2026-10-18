@@ -79,3 +79,15 @@ test('Editing photo metadata or a display name cannot move Krugerrand out of bul
  const config=mergeBoard(null,products,data.metals),entry=config.entries[p.id];
  assert.equal(entry.section,'bullion');assert.equal(entry.visible,true);assert.equal(entry.weight,'1 oz');
 });
+test('Board visibility is independent of catalogue visibility, including small Kangaroo weights',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),products=structuredClone(data.products);
+ const ids=['gold-australian-kangaroo-0-05oz','gold-australian-kangaroo-0-04oz','gold-krugerrand-1oz'];
+ for(const id of ids)products.goldCoins.find(p=>p.id===id).active=false;
+ const config=mergeBoard(null,products,data.metals);
+ for(const id of ids)config.entries[id].visible=true;
+ let rows=buildBoard(validateBoard(config,config,products),products,data.metals).rows;
+ for(const id of ids)assert.ok(rows.some(r=>r.id===id),'Missing enabled '+id);
+ config.entries[ids[0]].visible=false;rows=buildBoard(config,products,data.metals).rows;
+ assert.ok(!rows.some(r=>r.id===ids[0]));assert.ok(rows.some(r=>r.id===ids[1]));
+ assert.equal(products.goldCoins.find(p=>p.id===ids[1]).active,false);
+});

@@ -75,7 +75,7 @@ export function buildBoard(config, products, metals) {
   const lookup=new Map(Object.values(products).flat().map(p=>[p.id,p])), rows=[];
   for(const [id,entry] of Object.entries(config.entries)){
     const section=config.sections[entry.section],p=lookup.get(id),purity=id.startsWith('scrap-')?id.slice(6):null;
-    if(!entry.visible||!section?.visible||(!purity&&(!p||p.active===false)))continue;
+    if(!entry.visible||!section?.visible||(!purity&&!p))continue;
     const base=purity?metals.gold.spot*Number(purity)/1000:p.marketValue;
     const buy=purity?metals.gold.purities[purity]?.price:p.price;
     const valid=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
