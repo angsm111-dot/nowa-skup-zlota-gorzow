@@ -57,7 +57,17 @@ export function boardDefaults(products, metals) {
 export function mergeBoard(stored, products, metals) {
   const defaults=boardDefaults(products,metals);
   if(!stored)return defaults;
-  return renumberBars({...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries:Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>[id,{...value,...stored.entries?.[id],numberAssigned:stored.entries?.[id]?.numberAssigned??(stored.entries?.[id]?stored.entries[id].visible===true||stored.entries[id].number!==value.number:value.numberAssigned)}]))});
+  const entries=Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>{
+    const saved=stored.entries?.[id],entry={...value,...saved};
+    // Recover rows relabelled through the old group selector. Preserve prices and visibility.
+    if(saved&&saved.family!==value.family){
+      entry.family=value.family;entry.label=value.label;entry.weight=value.weight;entry.section=value.section;
+      const sibling=Object.entries(defaults.entries).find(([otherId,other])=>otherId!==id&&other.family===value.family&&stored.entries?.[otherId]?.family===value.family);
+      entry.order=sibling?stored.entries[sibling[0]].order??value.order:value.order;
+    }
+    return [id,entry];
+  }));
+  return renumberBars({...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries});
 }
 export function assignNewCoinNumbers(input,current){
   const result=structuredClone(input);
@@ -78,6 +88,7 @@ export function validateBoard(input, current, products) {
   for(const [id,previous] of Object.entries(current.entries)){
     const v=input.entries[id]||previous,group=groups.get(id);
     const allowed=id.startsWith('scrap-')?['scrap']:group==='goldCoins'?['bullion','historical','other']:[group];
+    if(v.family!==previous.family)fail('Grupa monety wynika automatycznie z produktu. Odśwież panel.');
     if(!allowed.includes(v.section))fail('Niewłaściwa sekcja produktu '+id);
     const entry={section:v.section,order:integer(v.order??previous.order,0,1000000000,'Nieprawidłowa kolejność'),numberAssigned:v.numberAssigned===true,number:integer(v.number,1,9999,'Numer gablotowy: od 1 do 9999'),label:clean(v.label),family:clean(v.family),weight:clean(v.weight),visible:boolean(v.visible),buy:boolean(v.buy),sell:boolean(v.sell),delivery:boolean(v.delivery),sellPercent:percent(v.sellPercent),deliveryPercent:percent(v.deliveryPercent)};
     if(!entry.label||!entry.family)fail('Uzupełnij nazwę i identyfikator rodziny');

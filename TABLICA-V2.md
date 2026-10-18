@@ -69,3 +69,7 @@ Serwer waliduje i przydziela numer także wtedy, gdy starsza wersja interfejsu n
 
 ## Numeracja kolumn — aktualizacja
 Każda z siedmiu kolumn ma niezależną automatyczną numerację od 1, według kolejności widocznych pozycji. Wagi jednej złotej monety mają wspólny numer. Dodanie, ukrycie, zmiana kategorii lub przesunięcie przelicza numery w danej kolumnie. Ta zasada zastępuje wcześniejszą wspólną numerację i rezerwowanie numerów. W panelu numer jest tylko do odczytu; kolejność zmienia się przyciskami Wyżej/Niżej. Stare zapisane ustawienia są przeliczane przy odczycie, bez zmiany cen i kolejności.
+
+
+## Automatyczne grupowanie monet
+Usunięto ręczny wybór grupy. Każdy produkt należy do swojej automatycznej rodziny; widocznością zarządza przełącznik Pokaż. Stare przypisania do obcej rodziny są naprawiane przy odczycie, wraz z nazwą, wagą i kategorią tego wiersza; marże, ceny i widoczność są zachowane. API odrzuca ręczną zmianę rodziny, także ze starej karty panelu.

@@ -137,3 +137,15 @@ test('Every column has consecutive numbers and bullion weights retain a shared n
  const krugerrand=rows.filter(r=>r.family==='gold-family-krugerrand');
  assert.equal(krugerrand.length,4);assert.ok(krugerrand.every(r=>r.number===1));
 });
+test('Legacy group reassignment is repaired without changing product prices or visibility',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),original=mergeBoard(null,data.products,data.metals),stored=structuredClone(original);
+ const id='gold-krugerrand-1oz',entry=stored.entries[id];
+ Object.assign(entry,{family:'gold-family-american-buffalo',label:'Bizon',weight:'inna waga',section:'historical',buy:false,sell:true,sellPercent:7,visible:true});
+ const repaired=mergeBoard(stored,data.products,data.metals),row=buildBoard(repaired,data.products,data.metals).rows.find(r=>r.id===id);
+ assert.equal(row.family,'gold-family-krugerrand');assert.equal(row.label,'Krugerrand');assert.equal(row.weight,'1 oz');assert.equal(row.section,'bullion');
+ assert.equal(row.buy,null);assert.equal(repaired.entries[id].sellPercent,7);assert.equal(repaired.entries[id].visible,true);
+ assert.equal(row.sell,Math.round(data.products.goldCoins.find(p=>p.id===id).marketValue*1.07*100)/100);
+ const invalid=structuredClone(repaired);invalid.entries[id].family='gold-family-american-buffalo';
+ assert.throws(()=>validateBoard(invalid,repaired,data.products),/Grupa monety wynika automatycznie/);
+ assert.deepEqual(mergeBoard(repaired,data.products,data.metals),repaired);
+});
