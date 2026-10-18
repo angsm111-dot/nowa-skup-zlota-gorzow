@@ -6,7 +6,8 @@
   panel.querySelector('#tabs').before(container);
   const saveButton=document.createElement('button');saveButton.type='button';saveButton.id='board-save';saveButton.hidden=true;
   const footerMessage=document.createElement('span');footerMessage.id='board-save-status';footerMessage.setAttribute('role','status');footerMessage.setAttribute('aria-live','polite');footerMessage.hidden=true;
-  panel.querySelector(':scope > footer').append(footerMessage,saveButton);
+  const boardActions=document.createElement('div');boardActions.id='board-footer-actions';boardActions.append(saveButton,footerMessage);
+  panel.querySelector(':scope > footer').insertBefore(boardActions,document.querySelector('#save'));
   let state=null, savedState=null, products={}, selected='bullion', changed=false;
   const allOption=document.createElement('option');allOption.value='all';allOption.textContent='Wszystkie produkty';container.querySelector('#board-section').append(allOption);
   const find=id=>container.querySelector('#'+id);
