@@ -1,7 +1,7 @@
 (() => {
   let pending=null;
   const dialog=document.createElement('dialog');dialog.className='admin-reauth';dialog.setAttribute('aria-labelledby','reauth-title');
-  dialog.innerHTML='<form id="reauth-form"><h2 id="reauth-title">Zaloguj się ponownie</h2><p>Sesja wygasła lub logowanie utraciło ważność. Niezapisane zmiany pozostają w panelu.</p><label for="reauth-user">Login</label><input id="reauth-user" autocomplete="username" required><label for="reauth-pass">Hasło</label><input id="reauth-pass" type="password" autocomplete="current-password" required><p id="reauth-error" role="alert"></p><div class="reauth-actions"><button type="button" id="reauth-cancel">Anuluj</button><button type="submit" id="reauth-submit">Zaloguj i kontynuuj</button></div></form>';
+  dialog.innerHTML='<form id="reauth-form"><h2 id="reauth-title">Zaloguj się ponownie</h2><p>Serwer wymaga ponownego potwierdzenia logowania. Niezapisane zmiany pozostają w panelu.</p><label for="reauth-user">Login</label><input id="reauth-user" autocomplete="username" required><label for="reauth-pass">Hasło</label><input id="reauth-pass" type="password" autocomplete="current-password" required><p id="reauth-error" role="alert"></p><div class="reauth-actions"><button type="button" id="reauth-cancel">Anuluj</button><button type="submit" id="reauth-submit">Zaloguj i kontynuuj</button></div></form>';
   document.body.append(dialog);
   const find=id=>dialog.querySelector('#'+id);
   function reauthenticate(){
