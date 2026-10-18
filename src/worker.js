@@ -342,6 +342,6 @@ async function adminBoard(request,env,ctx){
     const previous=await readJson(env,"config:board:v1");
     if(previous)await writeJson(env,"backup:board:"+Date.now(),previous);
     await writeJson(env,"config:board:v1",config);
-    return json({ok:true,config},200,{"cache-control":"no-store"});
+    return json({ok:true,config,products:payload.products,metals:payload.metals,fetchedAt:payload.fetchedAt},200,{"cache-control":"no-store"});
   }catch(error){return json({error:error.message||"Nieprawidłowe dane"},400)}
 }

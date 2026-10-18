@@ -95,9 +95,10 @@
       body.append(tr);
     });
   }
+  function updatePrices(data){products=Object.fromEntries(Object.values(data.products).flat().map(p=>[p.id,p]));boardMetals=data.metals;window.boardMetalSpot=data.metals.gold.spot;find('board-prices-time').textContent='Ceny według notowań z: '+(data.fetchedAt?new Date(data.fetchedAt).toLocaleString('pl-PL',{timeZone:'Europe/Warsaw'}):'—')+'. Tablica odświeża się co minutę; podgląd w panelu po ponownym otwarciu ustawień.';}
   function openEditor(){find('board-editor').hidden=false;find('board-close').disabled=false;find('board-load').setAttribute('aria-expanded','true');saveButton.hidden=false;footerMessage.hidden=false;}
   find('board-close').onclick=()=>{find('board-editor').hidden=true;find('board-close').disabled=true;find('board-load').setAttribute('aria-expanded','false');saveButton.hidden=true;footerMessage.hidden=true;message(changed?'Zamknięto ustawienia. Niezapisane zmiany zachowano do ponownego otwarcia.':'Ustawienia tablicy zamknięte.');};
-  find('board-load').onclick=async()=>{if(state&&changed){openEditor();render();message('Przywrócono niezapisane ustawienia.');return}try{message('Pobieranie…');const data=await request('GET');state=data.config;savedState=structuredClone(data.config);changed=false;saveButton.hidden=false;footerMessage.hidden=false;products=Object.fromEntries(Object.values(data.products).flat().map(p=>[p.id,p]));boardMetals=data.metals;window.boardMetalSpot=data.metals.gold.spot;find('board-prices-time').textContent='Ceny według notowań z: '+(data.fetchedAt?new Date(data.fetchedAt).toLocaleString('pl-PL',{timeZone:'Europe/Warsaw'}):'—')+'. Tablica odświeża się co minutę; podgląd w panelu po ponownym otwarciu ustawień.';openEditor();render();message('Ustawienia pobrane. Wyłączenie ceny pokazuje kreskę, bez usuwania produktu.')}catch(e){message(e.message)}};
+  find('board-load').onclick=async()=>{if(state&&changed){openEditor();render();message('Przywrócono niezapisane ustawienia.');return}try{message('Pobieranie…');const data=await request('GET');state=data.config;savedState=structuredClone(data.config);changed=false;saveButton.hidden=false;footerMessage.hidden=false;updatePrices(data);openEditor();render();message('Ustawienia pobrane. Wyłączenie ceny pokazuje kreskę, bez usuwania produktu.')}catch(e){message(e.message)}};
   find('board-search').oninput=()=>render();
   find('board-section').onchange=e=>{selected=e.target.value;render()};
   find('board-days').onchange=e=>{if(e.target.checkValidity()){state.deliveryDays=Number(e.target.value);changed=true;message('Zapisz nowy termin dostawy.')}else e.target.reportValidity()};
@@ -115,7 +116,7 @@
     }
     try{
       const local=structuredClone(state),data=await request('PUT',payload);
-      state=structuredClone(data.config);savedState=structuredClone(data.config);
+      state=structuredClone(data.config);savedState=structuredClone(data.config);updatePrices(data);
       for(const key of ['entries','sections'])for(const [id,value] of Object.entries(local[key]))if(JSON.stringify(value)!==JSON.stringify(payload[key][id]))state[key][id]=value;
       changed=JSON.stringify(state)!==JSON.stringify(savedState);render();
       message('Zapisano '+(selected==='all'?'wszystkie sekcje':titles[selected])+'.'+(changed?' W pozostałych sekcjach są niezapisane zmiany.':' Tablica pobierze zmiany przy najbliższym odświeżeniu.'));
