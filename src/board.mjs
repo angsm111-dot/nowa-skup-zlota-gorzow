@@ -37,15 +37,31 @@ export function boardDefaults(products, metals) {
     if (group==='silverBars') {label=p.grossWeight===31.1035?'1 oz':String(p.grossWeight).replace('.',',')+' g';}
     if (p.custom) visible=false;
     const order=['goldBars','silverBars'].includes(section)?Math.round(p.grossWeight*1000):number*1000;
-    entries[p.id]={section,order,number,label,family,weight,visible,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
+    entries[p.id]={section,order,number,numberAssigned:visible,label,family,weight,visible,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
   }
-  for(const [index,purity] of Object.keys(metals.gold.purities).entries()) entries['scrap-'+purity]={section:'scrap',order:(index+1)*1000,number:index+1,label:'Próba '+purity,family:'scrap-'+purity,weight:'',visible:true,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
+  for(const [index,purity] of Object.keys(metals.gold.purities).entries()) entries['scrap-'+purity]={section:'scrap',order:(index+1)*1000,number:index+1,numberAssigned:true,label:'Próba '+purity,family:'scrap-'+purity,weight:'',visible:true,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
   return renumberBars({version:1,deliveryDays:10,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{visible:true,buy:true,sell:true,delivery:true}])),entries});
 }
 export function mergeBoard(stored, products, metals) {
   const defaults=boardDefaults(products,metals);
   if(!stored)return defaults;
-  return renumberBars({...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries:Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>[id,{...value,...stored.entries?.[id]}]))});
+  return renumberBars({...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries:Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>[id,{...value,...stored.entries?.[id],numberAssigned:stored.entries?.[id]?.numberAssigned??(stored.entries?.[id]?stored.entries[id].visible===true||stored.entries[id].number!==value.number:value.numberAssigned)}]))});
+}
+export function assignNewCoinNumbers(input,current){
+  const result=structuredClone(input),assigned=new Map(),reserved=new Set();
+  for(const [id,previous] of Object.entries(current.entries)){
+    const entry=result.entries[id]??structuredClone(previous);result.entries[id]=entry;
+    if(!['bullion','historical','other'].includes(entry.section))continue;
+    entry.numberAssigned=previous.numberAssigned===true||entry.numberAssigned===true||entry.number!==previous.number;
+    if(entry.numberAssigned){assigned.set(entry.family,entry.number);if(Number.isInteger(entry.number)&&entry.number>0)reserved.add(entry.number)}
+  }
+  for(const entry of Object.values(result.entries)){
+    if(!['bullion','historical','other'].includes(entry.section)||!entry.visible||entry.numberAssigned)continue;
+    let number=assigned.get(entry.family);
+    if(number===undefined){number=Math.max(0,...reserved)+1;if(number>9999)throw Error('Brak wolnego numeru gablotowego');assigned.set(entry.family,number);reserved.add(number)}
+    for(const member of Object.values(result.entries))if(['bullion','historical','other'].includes(member.section)&&member.family===entry.family){member.number=number;member.numberAssigned=true}
+  }
+  return result;
 }
 export function validateBoard(input, current, products) {
   const fail=message=>{throw Error(message)};
@@ -53,6 +69,7 @@ export function validateBoard(input, current, products) {
   const boolean=value=>{if(typeof value!=='boolean')fail('Nieprawidłowy przełącznik');return value};
   const percent=value=>{if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>1000)fail('Narzut musi wynosić od 0 do 1000%');return value};
   if(!input?.entries||!input?.sections)fail('Brak ustawień tablicy');
+  input=assignNewCoinNumbers(input,current);
   const result={version:1,deliveryDays:integer(input.deliveryDays,1,365,'Termin dostawy: od 1 do 365 dni'),sections:{},entries:{},updatedAt:new Date().toISOString()};
   for(const key of BOARD_SECTIONS){const v=input.sections[key];if(!v)fail('Brak sekcji '+key);result.sections[key]=Object.fromEntries(['visible','buy','sell','delivery'].map(k=>[k,boolean(v[k])]))}
   const groups=new Map(Object.entries(products).flatMap(([g,list])=>list.map(p=>[p.id,g])));
@@ -61,7 +78,7 @@ export function validateBoard(input, current, products) {
     const v=input.entries[id]||previous,group=groups.get(id);
     const allowed=id.startsWith('scrap-')?['scrap']:group==='goldCoins'?['bullion','historical','other']:[group];
     if(!allowed.includes(v.section))fail('Niewłaściwa sekcja produktu '+id);
-    const entry={section:v.section,order:integer(v.order??previous.order,0,1000000000,'Nieprawidłowa kolejność'),number:integer(v.number,1,9999,'Numer gablotowy: od 1 do 9999'),label:clean(v.label),family:clean(v.family),weight:clean(v.weight),visible:boolean(v.visible),buy:boolean(v.buy),sell:boolean(v.sell),delivery:boolean(v.delivery),sellPercent:percent(v.sellPercent),deliveryPercent:percent(v.deliveryPercent)};
+    const entry={section:v.section,order:integer(v.order??previous.order,0,1000000000,'Nieprawidłowa kolejność'),numberAssigned:v.numberAssigned===true,number:integer(v.number,1,9999,'Numer gablotowy: od 1 do 9999'),label:clean(v.label),family:clean(v.family),weight:clean(v.weight),visible:boolean(v.visible),buy:boolean(v.buy),sell:boolean(v.sell),delivery:boolean(v.delivery),sellPercent:percent(v.sellPercent),deliveryPercent:percent(v.deliveryPercent)};
     if(!entry.label||!entry.family)fail('Uzupełnij nazwę i identyfikator rodziny');
     if(!['bullion','goldBars'].includes(entry.section))entry.delivery=false;
     if(entry.visible){

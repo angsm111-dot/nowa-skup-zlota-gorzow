@@ -112,3 +112,19 @@ test('Thirty-minute session expires for board and pricing; fresh login restores 
  }finally{Date.now=realNow}
  const renewed=await login();assert.equal((await call('/api/admin/board',{headers:{cookie:renewed}})).status,200);
 });
+test('First activation gets 19 after 18 when the remaining gold numbers are free',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),current=mergeBoard(null,data.products,data.metals),id='gold-russia-7-5-ruble';
+ for(const e of Object.values(current.entries))if(['bullion','historical','other'].includes(e.section)&&e.number>18){e.visible=false;e.numberAssigned=false}
+ const input=structuredClone(current);input.entries[id].visible=true;
+ const saved=validateBoard(input,current,data.products);
+ assert.equal(saved.entries[id].number,19);assert.equal(saved.entries[id].numberAssigned,true);
+ for(const [key,e] of Object.entries(current.entries))if(key!==id&&e.numberAssigned&&['bullion','historical','other'].includes(e.section))assert.equal(saved.entries[key].number,e.number);
+});
+test('Gold numbering reserves other categories and keeps an assigned number after hiding',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),current=mergeBoard(null,data.products,data.metals),id='gold-russia-7-5-ruble';
+ const input=structuredClone(current);input.entries[id].visible=true;
+ let saved=validateBoard(input,current,data.products);assert.equal(saved.entries[id].number,21);
+ let next=structuredClone(saved);next.entries[id].visible=false;saved=validateBoard(next,saved,data.products);
+ next=structuredClone(saved);next.entries[id].visible=true;
+ assert.equal(validateBoard(next,saved,data.products).entries[id].number,21);
+});

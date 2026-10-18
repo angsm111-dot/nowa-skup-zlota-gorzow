@@ -59,3 +59,9 @@ Numer sztabki w panelu jest tylko do odczytu — wynika z kolejności, nie wymag
 ## Wygaśnięcie logowania
 
 Sesja nadal wygasa po 30 minutach. Gdy uwierzytelnione żądanie panelu cen lub tablicy zwróci 401, panel otwiera dialog ponownego logowania i po sukcesie ponawia pierwotne żądanie. Nie przeładowuje strony, nie pobiera ponownie konfiguracji nad niezapisanymi zmianami i nie zapisuje hasła lokalnie. Anulowanie zachowuje edycję bez zapisywania. Nieprawidłowe hasło pozostawia dialog otwarty. Pierwsze wejście do panelu używa dotychczasowego formularza logowania. Sprawdzono w Chromium ponowne logowanie z widoku monet, zachowanie edytowanej marży, ponowienie zapisu tablicy, błędne hasło i anulowanie logowania.
+
+## Kolejny numer nowej monety
+
+Pozycje nieaktywowane na tablicy mają `numberAssigned: false`; pole numeru w panelu pokazuje „Automatycznie”. Przy pierwszym włączeniu nowa rodzina monety otrzymuje numer po najwyższym przydzielonym numerze we wspólnej numeracji trzech kategorii złotych monet. Ukryte, ale wcześniej przydzielone numery pozostają zarezerwowane. Dodatkowa waga znanej rodziny dziedziczy wspólny numer rodziny, zgodnie z aktualnym ustaleniem.
+
+Serwer waliduje i przydziela numer także wtedy, gdy starsza wersja interfejsu nie zrobiła tego automatycznie. Istniejące numery nie są masowo zmieniane. Przycisk „Następny wolny” pozwala skorygować wcześniej zapisany techniczny numer pojedynczej rodziny (np. 63); wymaga zatwierdzenia zapisem sekcji. Numery 19 i 20 w innej kategorii pozostają zajęte — kolejny numer będzie wtedy 21, nie 19.
