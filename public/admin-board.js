@@ -2,9 +2,10 @@
   const titles={bullion:'Złote monety bulionowe',historical:'Złote monety historyczne',other:'Złote monety pozostałe',goldBars:'Złote sztabki LBMA',scrap:'Złom złota',silverCoins:'Srebrne monety',silverBars:'Srebrne sztabki'};
   const panel=document.querySelector('#panel'), container=document.createElement('section');
   container.className='board-admin';
-  container.innerHTML='<h2>Tablica w lokalu</h2><p>Osobne ustawienia tablicy. Ceny skupu na dotychczasowych stronach pozostają bez zmian. Sprzedaż i dostawa = wartość czystego kruszcu według spot + narzut.</p><button type="button" id="board-load">Otwórz ustawienia tablicy</button><div id="board-editor" hidden><label>Termin dostawy (dni) <input id="board-days" type="number" min="1" max="365" required></label><p>Wspólna numeracja trzech sekcji złotych monet. Wagi jednej monety mają wspólny numer i nazwę. Pozostałe sekcje mają własną numerację.</p><label>Sekcja <select id="board-section"></select></label><div id="board-section-options"></div><div class="board-table-wrap"><table><thead><tr><th>Produkt w katalogu</th><th>Na tablicy</th><th>Kategoria</th><th>Numer</th><th>Nazwa na tablicy</th><th>Grupa monety / waga</th><th>Skup</th><th>Sprzedaż / narzut</th><th>Dostawa / narzut</th></tr></thead><tbody id="board-rows"></tbody></table></div><button type="button" id="board-save">Zapisz ustawienia tablicy</button></div><p id="board-message" role="status" aria-live="polite"></p>';
+  container.innerHTML='<h2>Tablica w lokalu</h2><p>Osobne ustawienia tablicy. Ceny skupu na dotychczasowych stronach pozostają bez zmian. Sprzedaż i dostawa = wartość czystego kruszcu według spot + narzut.</p><button type="button" id="board-load">Otwórz ustawienia tablicy</button><div id="board-editor" hidden><label>Termin dostawy (dni) <input id="board-days" type="number" min="1" max="365" required></label><p>Wspólna numeracja trzech sekcji złotych monet. Wagi jednej monety mają wspólny numer i nazwę. Pozostałe sekcje mają własną numerację.</p><label>Sekcja <select id="board-section"></select></label><label>Szukaj produktu <input id="board-search" type="search" placeholder="np. Krugerrand 1 oz"></label><div id="board-section-options"></div><div class="board-table-wrap"><table><thead><tr><th>Produkt w katalogu</th><th>Na tablicy</th><th>Kategoria</th><th>Numer</th><th>Nazwa na tablicy</th><th>Grupa monety / waga</th><th>Skup</th><th>Sprzedaż / narzut</th><th>Dostawa / narzut</th></tr></thead><tbody id="board-rows"></tbody></table></div><button type="button" id="board-save">Zapisz ustawienia tablicy</button></div><p id="board-message" role="status" aria-live="polite"></p>';
   panel.querySelector('#tabs').before(container);
   let state=null, products={}, selected='bullion', changed=false;
+  const allOption=document.createElement('option');allOption.value='all';allOption.textContent='Wszystkie produkty';container.querySelector('#board-section').append(allOption);
   const find=id=>container.querySelector('#'+id);
   for(const [key,title] of Object.entries(titles)){const option=document.createElement('option');option.value=key;option.textContent=title;find('board-section').append(option)}
   const message=text=>find('board-message').textContent=text;
@@ -14,12 +15,13 @@
   function render(){
     find('board-days').value=state.deliveryDays;
     const opts=find('board-section-options');opts.replaceChildren();
-    for(const [key,label] of Object.entries({visible:'Pokaż sekcję',buy:'Pokaż skup',sell:'Pokaż sprzedaż',...(['bullion','goldBars'].includes(selected)?{delivery:'Przyjmuj zamówienia z dostawą'}:{})}))opts.append(check(label,state.sections[selected][key],v=>state.sections[selected][key]=v));
+    if(selected!=='all')for(const [key,label] of Object.entries({visible:'Pokaż sekcję',buy:'Pokaż skup',sell:'Pokaż sprzedaż',...(['bullion','goldBars'].includes(selected)?{delivery:'Przyjmuj zamówienia z dostawą'}:{})}))opts.append(check(label,state.sections[selected][key],v=>state.sections[selected][key]=v));
     const body=find('board-rows');body.replaceChildren();
-    Object.entries(state.entries).filter(([,v])=>v.section===selected).sort((a,b)=>a[1].number-b[1].number).forEach(([id,entry])=>{
+    const query=find('board-search').value.trim().toLocaleLowerCase('pl-PL');
+    Object.entries(state.entries).filter(([id,v])=>(query||selected==='all'||v.section===selected)&&(!query||(products[id]?.name+' '+v.label+' '+v.weight).toLocaleLowerCase('pl-PL').includes(query))).sort((a,b)=>a[1].number-b[1].number).forEach(([id,entry])=>{
       const tr=document.createElement('tr');
       const cell=(...children)=>{const td=document.createElement('td');td.append(...children);tr.append(td);return td};
-      cell(document.createTextNode(products[id]?.name||entry.label));
+      const productCell=cell(document.createTextNode(products[id]?.name||entry.label));if(products[id]?.active===false){const note=document.createElement('small');note.textContent='Ukryty w głównym katalogu — włącz go tam, aby wyświetlić na tablicy.';productCell.append(note)}
       cell(check('Pokaż',entry.visible,v=>entry.visible=v));
       const select=document.createElement('select');select.setAttribute('aria-label','Kategoria '+entry.label);
       const categories=['bullion','historical','other'].includes(entry.section)?['bullion','historical','other']:[entry.section];
@@ -36,7 +38,7 @@
       if(categories.length>1)cell(family,weight);else cell(document.createTextNode('—'));
       cell(check('Skup',entry.buy,v=>entry.buy=v));
       for(const [flag,field,label] of [['sell','sellPercent','Sprzedaż'],['delivery','deliveryPercent','Dostawa']]){
-        if(flag==='delivery'&&!['bullion','goldBars'].includes(selected)){cell(document.createTextNode('—'));continue}
+        if(flag==='delivery'&&!['bullion','goldBars'].includes(entry.section)){cell(document.createTextNode('—'));continue}
         const percent=input(entry[field],'number',v=>entry[field]=v,label+' — narzut względem spot (%)');percent.min=0;percent.max=1000;percent.step='0.1';percent.required=true;
         const price=document.createElement('small'),p=products[id];
         const base=p?.marketValue??(Number(id.slice(6))*window.boardMetalSpot/1000);
@@ -47,6 +49,7 @@
     });
   }
   find('board-load').onclick=async()=>{try{message('Pobieranie…');const data=await request('GET');state=data.config;products=Object.fromEntries(Object.values(data.products).flat().map(p=>[p.id,p]));window.boardMetalSpot=data.metals.gold.spot;find('board-editor').hidden=false;render();message('Ustawienia pobrane. Wyłączenie ceny pokazuje kreskę, bez usuwania produktu.')}catch(e){message(e.message)}};
+  find('board-search').oninput=()=>render();
   find('board-section').onchange=e=>{selected=e.target.value;render()};
   find('board-days').onchange=e=>{if(e.target.checkValidity()){state.deliveryDays=Number(e.target.value);changed=true;message('Zapisz nowy termin dostawy.')}else e.target.reportValidity()};
   find('board-save').onclick=async()=>{const b=find('board-save');if(![...container.querySelectorAll('input')].every(e=>e.reportValidity()))return;b.disabled=true;try{const data=await request('PUT',state);state=data.config;changed=false;render();message('Ustawienia tablicy zapisane. Tablica pobierze je przy kolejnym odświeżeniu.')}catch(e){message('Nie zapisano: '+e.message)}finally{b.disabled=false}};

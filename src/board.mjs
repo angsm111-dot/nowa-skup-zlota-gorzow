@@ -12,19 +12,21 @@ export function boardDefaults(products, metals) {
     if (!['goldCoins','goldBars','silverCoins','silverBars'].includes(group)) continue;
     let section=group==='goldCoins'?'historical':group, number=index+1, label=p.name, family=p.id, weight='', visible=group!=='goldCoins';
     if (group==='goldCoins') {
-      const slug=p.imageKey, match=families[slug];
+      const idSlug=p.id.replace(/^gold-/, '').replace(/-(?:1|0-5|0-25|0-1|0-05|0-04)oz$/, '');
+      const slug=families[idSlug]||history.includes(idSlug)||['chinese-panda','south-africa-2-rand'].includes(idSlug)?idSlug:p.imageKey, match=families[slug];
       if (match) {
         section='bullion'; [number,label]=match; family='gold-family-'+slug;
-        weight=p.name.match(/(1(?:\/\d+)? oz)$/)?.[1] || '1 oz';
+        const fraction=p.id.match(/-(1|0-5|0-25|0-1|0-05|0-04)oz$/)?.[1];
+        weight=({'1':'1 oz','0-5':'1/2 oz','0-25':'1/4 oz','0-1':'1/10 oz','0-05':'1/20 oz','0-04':'1/25 oz'})[fraction] || p.name.match(/(1(?:\/\d+)? oz)$/)?.[1] || '1 oz';
         visible=!['1/20 oz','1/25 oz'].includes(weight);
       } else if (slug==='chinese-panda' || slug==='south-africa-2-rand') {
         section='other';number=slug==='chinese-panda'?19:20;
-        visible=slug!=='chinese-panda' || / 1 oz$/.test(p.name);
+        visible=slug!=='chinese-panda' || p.id==='gold-chinese-panda-1oz';
       } else {
         const i=history.indexOf(slug);number=i>=0?i+8:index+21;visible=i>=0;
       }
     }
-    if (group==='goldBars') {const weights=[1,2.5,5,10,20,31.1035,50,100];const i=weights.indexOf(p.grossWeight);if(i>=0)number=i+1;label=p.grossWeight===31.1035?'1 oz':String(p.grossWeight).replace('.',',')+' g';}
+    if (group==='goldBars') {const ids=['gold-bar-1g','gold-bar-2-5g','gold-bar-5g','gold-bar-10g','gold-bar-20g','gold-bar-31-1035g','gold-bar-50g','gold-bar-100g'];const i=ids.indexOf(p.id);number=i>=0?i+1:ids.length+index+1;label=p.id==='gold-bar-31-1035g'?'1 oz':String(p.grossWeight).replace('.',',')+' g';}
     if (group==='silverBars') {label=p.grossWeight===31.1035?'1 oz':String(p.grossWeight).replace('.',',')+' g';}
     if (p.custom) visible=false;
     entries[p.id]={section,number,label,family,weight,visible,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};

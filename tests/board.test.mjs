@@ -66,3 +66,16 @@ test('A whole family can move to another gold category without renumbering its w
  const board=buildBoard(validateBoard(config,config,data.products),data.products,data.metals);
  const rows=board.rows.filter(r=>r.family==='gold-family-krugerrand');assert.equal(rows.length,4);assert.ok(rows.every(r=>r.section==='other'&&r.number===1));
 });
+test('Edited built-in bar weights do not collide in the default display numbering',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json();
+ const products=structuredClone(data.products);products.goldBars.find(p=>p.id==='gold-bar-31-1035g').grossWeight=31.1;
+ const config=mergeBoard(null,products,data.metals);
+ assert.equal(config.entries['gold-bar-31-1035g'].number,6);
+ assert.notEqual(config.entries['gold-bar-31-1035g'].number,config.entries['gold-bar-50g'].number);
+});
+test('Editing photo metadata or a display name cannot move Krugerrand out of bullion',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json();
+ const products=structuredClone(data.products),p=products.goldCoins.find(p=>p.id==='gold-krugerrand-1oz');p.imageKey='';p.name='Krugerrand';
+ const config=mergeBoard(null,products,data.metals),entry=config.entries[p.id];
+ assert.equal(entry.section,'bullion');assert.equal(entry.visible,true);assert.equal(entry.weight,'1 oz');
+});

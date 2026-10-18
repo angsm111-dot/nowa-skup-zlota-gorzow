@@ -21,8 +21,8 @@ function render(){
   $('#spot').textContent=`${money(prices.metals[active].spot)} / g`;
   const rows=$('#rows');
   rows.innerHTML=kind==='purities'?Object.entries(config.metals[active]).map(([purity,setting])=>purityRow(purity,setting)).join(''):currentProducts().map(product=>productRow(product)).join('');
-  const firstHeader=document.querySelector('thead th');firstHeader.textContent=kind==='purities'?'Próba':'Produkt';
-  document.querySelectorAll('thead th')[1].textContent=kind==='purities'?'Cena giełdowa':'Wartość metalu';
+  const priceHeaders=$('#rows').closest('table').querySelectorAll('thead th');const firstHeader=priceHeaders[0];firstHeader.textContent=kind==='purities'?'Próba':'Produkt';
+  priceHeaders[1].textContent=kind==='purities'?'Cena giełdowa':'Wartość metalu';
   rows.querySelectorAll('.margin,.manual').forEach(input=>{input.addEventListener('input',change);input.addEventListener('change',change);input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();change(event);event.target.blur()}})});
   rows.querySelectorAll('.mode').forEach(select=>select.addEventListener('change',change));
 }
