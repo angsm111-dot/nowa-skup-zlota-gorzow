@@ -13,6 +13,8 @@
   const find=id=>container.querySelector('#'+id);
   for(const [key,title] of Object.entries(titles)){const option=document.createElement('option');option.value=key;option.textContent=title;find('board-section').append(option)}
   const message=text=>{find('board-message').textContent=text;footerMessage.textContent=text};
+  container.addEventListener('change',()=>{if(savePhase==='saved'){savePhase='';updateSaveButton()}});
+  container.addEventListener('click',e=>{if(e.target.closest('.board-move')&&savePhase==='saved'){savePhase='';updateSaveButton()}});
   async function request(method,body){const r=await window.AdminSession.fetchAuthenticated('/api/admin/board',{method,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(data.error||'Błąd serwera');return data}
   function input(value,type,change,label){const e=document.createElement('input');e.type=type;e.setAttribute('aria-label',label);if(type==='checkbox')e.checked=value;else e.value=value;e.addEventListener('change',()=>{if(!e.checkValidity()){e.reportValidity();return}change(type==='checkbox'?e.checked:type==='number'?Number(e.value):e.value.trim());changed=true;message('Masz niezapisane ustawienia tablicy.');});return e}
   function check(label,value,callback){const e=document.createElement('label');e.append(input(value,'checkbox',callback,label),document.createTextNode(' '+label));return e}
@@ -44,7 +46,7 @@
   }
   function assignCoinNumber(){renumberBars()}
   function updateSaveButton(){
-    saveButton.disabled=!!savePhase;
+    saveButton.disabled=savePhase==='saving';
     saveButton.classList.toggle('is-publishing',savePhase==='saving');
     saveButton.classList.toggle('is-published',savePhase==='saved');
     saveButton.setAttribute('aria-busy',String(savePhase==='saving'));
@@ -100,8 +102,10 @@
   find('board-section').onchange=e=>{selected=e.target.value;render()};
   find('board-days').onchange=e=>{if(e.target.checkValidity()){state.deliveryDays=Number(e.target.value);changed=true;message('Zapisz nowy termin dostawy.')}else e.target.reportValidity()};
   saveButton.onclick=async()=>{
-    if(!state||![...container.querySelectorAll('input')].every(e=>e.reportValidity()))return;
-    if(savePhase)return;
+    if(!state)return;
+    const invalid=[...container.querySelectorAll('input')].find(e=>!e.checkValidity());
+    if(invalid){savePhase='';updateSaveButton();invalid.scrollIntoView({block:'center'});invalid.reportValidity();const row=invalid.closest('tr');message('Nie zapisano: popraw pole '+(invalid.getAttribute('aria-label')||'ustawień')+(row?' — '+row.cells[0].textContent:'')+'.');return}
+    if(savePhase==='saving')return;
     savePhase='saving';updateSaveButton();
     const payload=selected==='all'?structuredClone(state):structuredClone(savedState);
     if(selected!=='all'){
@@ -116,7 +120,7 @@
       changed=JSON.stringify(state)!==JSON.stringify(savedState);render();
       message('Zapisano '+(selected==='all'?'wszystkie sekcje':titles[selected])+'.'+(changed?' W pozostałych sekcjach są niezapisane zmiany.':' Tablica pobierze zmiany przy najbliższym odświeżeniu.'));
       savePhase='saved';updateSaveButton();
-      setTimeout(()=>{savePhase='';updateSaveButton()},1800);
+      // Keep the confirmation visible until the next edit or save.
     }catch(e){savePhase='';updateSaveButton();message('Nie zapisano: '+e.message)}
   };
   window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue=''}});
