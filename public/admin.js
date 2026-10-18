@@ -2,7 +2,7 @@ const names={gold:['Au','Złoto'],silver:['Ag','Srebro'],platinum:['Pt','Platyna
 let config=null,prices=null,active='gold',kind='purities',dirty=false;
 const $=selector=>document.querySelector(selector),money=value=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN'}).format(value),number=value=>Number(value).toFixed(2).replace('.',',');
 
-async function api(path,options={}){const response=await fetch(path,{...options,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json',...options.headers}});if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||'Błąd serwera')}return response.json()}
+async function api(path,options={}){const response=await window.AdminSession.fetchAuthenticated(path,{...options,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json',...options.headers}});if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||'Błąd serwera')}return response.json()}
 async function loadPrices(){return fetch(`/api/prices?t=${Date.now()}`,{cache:'no-store'}).then(response=>{if(!response.ok)throw Error('Nie udało się pobrać cen');return response.json()})}
 async function login(){const button=$('#login-btn');button.disabled=true;$('#login-error').textContent='Sprawdzanie…';try{await api('/api/admin/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});$('#password').value='';config=await api('/api/admin/config');prices=await loadPrices();$('#login').hidden=true;$('#panel').hidden=false;render()}catch(error){$('#login-error').textContent=error.message}finally{button.disabled=false}}
 

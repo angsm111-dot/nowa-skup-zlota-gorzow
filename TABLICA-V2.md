@@ -55,3 +55,7 @@ Obok otwierania ustawień jest przycisk zamknięcia. Zamknięcie zachowuje nieza
 Kolejność tablicy jest osobnym polem `order`, niezależnym od numeru gablotowego i kolejności głównego katalogu. Starsze konfiguracje bez `order` otrzymują domyślną kolejność: sztabki od najmniejszej masy, pozostałe sekcje według numerów. Przyciski ↑/↓ przesuwają pozycję wewnątrz sekcji, a dla monet — całą grupę wag. Zapis wybranej sekcji utrwala kolejność. API i tablica zachowują tę samą kolejność. Numery monet i ceny nie zmieniają się podczas przesuwania. Numery widocznych sztabek są automatycznie dopasowywane do kolejności: 1, 2, 3…; ukryte sztabki nie zostawiają luk.
 
 Numer sztabki w panelu jest tylko do odczytu — wynika z kolejności, nie wymaga ręcznego wpisywania. Dotyczy osobno sztabek złota i srebra. Zmiana kolejności lub widoczności przelicza ich numery, bez zmiany cen.
+
+## Wygaśnięcie logowania
+
+Sesja nadal wygasa po 30 minutach. Gdy uwierzytelnione żądanie panelu cen lub tablicy zwróci 401, panel otwiera dialog ponownego logowania i po sukcesie ponawia pierwotne żądanie. Nie przeładowuje strony, nie pobiera ponownie konfiguracji nad niezapisanymi zmianami i nie zapisuje hasła lokalnie. Anulowanie zachowuje edycję bez zapisywania. Nieprawidłowe hasło pozostawia dialog otwarty. Pierwsze wejście do panelu używa dotychczasowego formularza logowania. Sprawdzono w Chromium ponowne logowanie z widoku monet, zachowanie edytowanej marży, ponowienie zapisu tablicy, błędne hasło i anulowanie logowania.

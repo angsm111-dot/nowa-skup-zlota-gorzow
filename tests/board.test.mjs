@@ -103,3 +103,12 @@ test('Visible bars start at one and follow the chosen order, even in legacy sett
  assert.equal(buildBoard(reloaded,products,data.metals).rows.filter(r=>r.section==='goldBars')[0].id,'gold-bar-100g');
  assert.equal(reloaded.entries['custom-half-gram'].number,2);
 });
+test('Thirty-minute session expires for board and pricing; fresh login restores access',async()=>{
+ const {call,login}=instance(),cookie=await login(),realNow=Date.now;
+ try{
+  const time=realNow();Date.now=()=>time+31*60000;
+  assert.equal((await call('/api/admin/board',{headers:{cookie}})).status,401);
+  assert.equal((await call('/api/admin/config',{headers:{cookie}})).status,401);
+ }finally{Date.now=realNow}
+ const renewed=await login();assert.equal((await call('/api/admin/board',{headers:{cookie:renewed}})).status,200);
+});

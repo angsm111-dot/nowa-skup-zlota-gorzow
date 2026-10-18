@@ -13,7 +13,7 @@
   const find=id=>container.querySelector('#'+id);
   for(const [key,title] of Object.entries(titles)){const option=document.createElement('option');option.value=key;option.textContent=title;find('board-section').append(option)}
   const message=text=>{find('board-message').textContent=text;footerMessage.textContent=text};
-  async function request(method,body){const r=await fetch('/api/admin/board',{method,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(data.error||'Błąd serwera');return data}
+  async function request(method,body){const r=await window.AdminSession.fetchAuthenticated('/api/admin/board',{method,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(data.error||'Błąd serwera');return data}
   function input(value,type,change,label){const e=document.createElement('input');e.type=type;e.setAttribute('aria-label',label);if(type==='checkbox')e.checked=value;else e.value=value;e.addEventListener('change',()=>{if(!e.checkValidity()){e.reportValidity();return}change(type==='checkbox'?e.checked:type==='number'?Number(e.value):e.value.trim());changed=true;message('Masz niezapisane ustawienia tablicy.');});return e}
   function check(label,value,callback){const e=document.createElement('label');e.append(input(value,'checkbox',callback,label),document.createTextNode(' '+label));return e}
   const entryOrder=entry=>entry.order??entry.number*1000;
