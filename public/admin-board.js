@@ -74,7 +74,7 @@
       if(categories.length>1)cell(weight);else cell(document.createTextNode('—'));
       const buyPrice=products[id]?.price??(id.startsWith('scrap-')?boardMetals.gold?.purities?.[id.slice(6)]?.price:null);
       const buyPreview=document.createElement('small');buyPreview.className='board-buy-price';
-      buyPreview.textContent=Number.isFinite(buyPrice)?'Cena skupu: '+buyPrice.toLocaleString('pl-PL',{useGrouping:false,minimumFractionDigits:2,maximumFractionDigits:2})+' zł • Na tablicy: '+(entry.buy&&state.sections[entry.section].buy?Math.round(buyPrice)+' zł':'—'):'Cena skupu niedostępna';
+      buyPreview.textContent=Number.isFinite(buyPrice)?'Skup: '+buyPrice.toLocaleString('pl-PL',{useGrouping:false,minimumFractionDigits:2,maximumFractionDigits:2})+' zł, tablica: '+(entry.buy&&state.sections[entry.section].buy?Math.round(buyPrice)+' zł':'—'):'Cena skupu niedostępna';
       cell(check('Skup',entry.buy,v=>{entry.buy=v;render()}),buyPreview);
       for(const [flag,field,label] of [['sell','sellPercent','Sprzedaż'],['delivery','deliveryPercent','Dostawa']]){
         if(flag==='delivery'&&!['bullion','goldBars'].includes(entry.section)){cell(document.createTextNode('—'));continue}
