@@ -1,3 +1,4 @@
+import { mergeBoard, validateBoard, buildBoard } from "./board.mjs";
 const METALS = {
   gold: { name: "Złoto", symbol: "Au", purities: [333,375,500,585,750,916,960,986,999], fallback: 337.8 },
   silver: { name: "Srebro", symbol: "Ag", purities: [999,960,925,900,875,835,830,800,600], fallback: 3.72 },
@@ -87,6 +88,7 @@ export default {
     }
     const publicRoute=PUBLIC_ROUTES[url.pathname.replace(/\/$/,"")];
     if(publicRoute&&request.method==="GET")return Response.redirect(`${url.origin}/#${publicRoute}`,302);
+    if(url.pathname==="/api/admin/board" && ["GET","PUT"].includes(request.method))return adminBoard(request,env,ctx);
     if(url.pathname==="/api/prices"&&request.method==="GET")return publicPrices(env,ctx);
     if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
     if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout();
@@ -117,7 +119,8 @@ async function publicPrices(env,ctx){
   }
   const products={};
   for(const [group,list] of Object.entries(allProductGroups(config)))products[group]=list.map(product=>{const setting=config.products[product.id],spot=Number(market.metals[product.metal]?.spot||METALS[product.metal].fallback),marketValue=spot*product.fineWeight,auto=marketValue*(1-setting.margin/100);return {...product,marketValue:round(marketValue),price:round(setting.mode==="manual"&&setting.manualPrice!==null?setting.manualPrice:auto),margin:setting.margin,mode:setting.mode}});
-  return json({status:"ok",fetchedAt:market.fetchedAt,provider:market.provider,configUpdatedAt:config.updatedAt,metals,products},200,{"cache-control":"no-store, no-cache, must-revalidate, max-age=0","cdn-cache-control":"no-store","cloudflare-cdn-cache-control":"no-store",pragma:"no-cache",expires:"0"});
+  const board=buildBoard(mergeBoard(await readJson(env,"config:board:v1"),products,metals),products,metals);
+  return json({board,status:"ok",fetchedAt:market.fetchedAt,provider:market.provider,configUpdatedAt:config.updatedAt,metals,products},200,{"cache-control":"no-store, no-cache, must-revalidate, max-age=0","cdn-cache-control":"no-store","cloudflare-cdn-cache-control":"no-store",pragma:"no-cache",expires:"0"});
 }
 
 async function serveAsset(env,request){
@@ -248,6 +251,7 @@ async function adminPut(request,env){
   current.customProducts=sanitizeCustomProducts(body.customProducts);
   for(const [metal,meta] of Object.entries(METALS))for(const purity of meta.purities){const s=body.metals?.[metal]?.[purity];if(!s)continue;current.metals[metal][purity]={margin:clamp(Number(s.margin),0,100),mode:s.mode==="manual"?"manual":"auto",manualPrice:s.mode==="manual"?Math.max(0,Number(s.manualPrice)||0):null};}
   for(const list of Object.values(allProductGroups(current)))for(const product of list){const s=body.products?.[product.id];if(!s)continue;current.products[product.id]={margin:clamp(Number(s.margin),0,100),mode:s.mode==="manual"?"manual":"auto",manualPrice:s.mode==="manual"?Math.max(0,Number(s.manualPrice)||0):null};}
+  const previous=await readJson(env,"config:pricing");if(previous)await writeJson(env,"backup:pricing:"+Date.now(),previous);
   current.updatedAt=now();current.updatedBy="panel";await writeJson(env,"config:pricing",current);return json({ok:true,config:current});
 }
 async function adminRefresh(request,env){if(!await authorized(request,env))return json({error:"Brak dostępu"},401);return json({ok:true,market:await refreshMarket(env)});}
@@ -324,3 +328,20 @@ function mergeHistory(providerHistory,storedHistory){return normalizeHistory([..
 function fallbackMarket(){const metals={};for(const [k,v] of Object.entries(METALS))metals[k]={spot:v.fallback,change:0,history:[]};return {fetchedAt:now(),provider:"Dane zapasowe",metals}}
 function check(r){if(!r.ok)throw new Error(String(r.status));return r}function round(v){return Math.round(v*100)/100}function clamp(v,a,b){return Math.max(a,Math.min(b,Number.isFinite(v)?v:a))}function delta(a,b){return b?(Number(a)-Number(b))/Number(b)*100:0}
 
+
+async function adminBoard(request,env,ctx){
+  if(!await authorized(request,env))return json({error:"Brak dostępu"},401);
+  if(request.method==="PUT"&&!env.PRICE_STORE)return json({error:"Brak magazynu ustawień. Nie zapisano zmian."},503);
+  const response=await publicPrices(env,ctx),payload=await response.json();
+  const current=mergeBoard(await readJson(env,"config:board:v1"),payload.products,payload.metals);
+  if(request.method==="GET")return json({config:current,products:payload.products,metals:payload.metals},200,{"cache-control":"no-store"});
+  try{
+    const input=await request.json();
+    if((input.updatedAt??null)!==(current.updatedAt??null))return json({error:"Ustawienia zmieniono w innym oknie. Pobierz je ponownie."},409);
+    const config=validateBoard(input,current,payload.products);
+    const previous=await readJson(env,"config:board:v1");
+    if(previous)await writeJson(env,"backup:board:"+Date.now(),previous);
+    await writeJson(env,"config:board:v1",config);
+    return json({ok:true,config},200,{"cache-control":"no-store"});
+  }catch(error){return json({error:error.message||"Nieprawidłowe dane"},400)}
+}

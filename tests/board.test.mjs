@@ -1,0 +1,68 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import worker from '../src/worker.js';
+import {mergeBoard,validateBoard,buildBoard} from '../src/board.mjs';
+function instance(){
+ const store=new Map([['market:latest',JSON.stringify({fetchedAt:new Date().toISOString(),provider:'Test',metals:Object.fromEntries(['gold','silver','platinum','palladium'].map(k=>[k,{spot:100,change:0,history:[]}]))})]]);
+ const env={ADMIN_USERNAME:'test',ADMIN_PASSWORD:'test-only-password',PRICE_STORE:{get:async k=>store.get(k)??null,put:async(k,v)=>store.set(k,v),delete:async k=>store.delete(k)}};
+ const call=(path,options={})=>worker.fetch(new Request('https://test.local'+path,options),env,{});
+ const login=async()=>{const r=await call('/api/admin/login',{method:'POST',body:JSON.stringify({username:'test',password:'test-only-password'})});assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0]};
+ return {store,env,call,login};
+}
+test('Legacy prices and all silver products remain identical when board settings change',async()=>{
+ const {call,login,store}=instance(),before=await (await call('/api/prices')).json(),cookie=await login();
+ const response=await call('/api/admin/board',{headers:{cookie}});assert.equal(response.status,200);
+ const {config}=await response.json();
+ const id='gold-krugerrand-1oz',row=config.entries[id];row.sell=true;row.sellPercent=2;row.delivery=true;row.deliveryPercent=1;
+ const save=await call('/api/admin/board',{method:'PUT',headers:{cookie},body:JSON.stringify(config)});assert.equal(save.status,200);
+ const after=await (await call('/api/prices')).json();
+ assert.deepEqual(after.products,before.products);assert.deepEqual(after.metals,before.metals);assert.equal(store.has('config:pricing'),false);
+ const gold=after.products.goldCoins.find(p=>p.id===id),actual=after.board.rows.find(p=>p.id===id);
+ assert.equal(actual.buy,gold.price);assert.equal(actual.sell,Math.round(gold.marketValue*1.02*100)/100);assert.equal(actual.delivery,Math.round(gold.marketValue*1.01*100)/100);
+});
+test('Board write requires authentication',async()=>{const {call}=instance();assert.equal((await call('/api/admin/board',{method:'PUT',body:'{}'})).status,401)});
+test('Defaults group weights under one stable number and classify selected historic coins',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json();
+ const rows=data.board.rows;
+ const weights=rows.filter(p=>p.family==='gold-family-krugerrand');assert.equal(weights.length,4);assert.ok(weights.every(p=>p.number===1&&p.label==='Krugerrand'));
+ assert.equal(rows.find(p=>p.id==='gold-russia-5-ruble').section,'historical');assert.equal(rows.find(p=>p.id==='gold-russia-5-ruble').number,12);
+ assert.equal(rows.find(p=>p.id==='gold-chinese-panda-1oz').section,'other');
+});
+test('Section switches hide prices without removing products; hidden rows are omitted',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
+ const id='gold-bar-1g';config.entries[id].sell=true;config.sections.goldBars.buy=false;
+ let board=buildBoard(config,data.products,data.metals),row=board.rows.find(p=>p.id===id);assert.equal(row.buy,null);assert.equal(typeof row.sell,'number');
+ config.entries[id].visible=false;assert.ok(!buildBoard(config,data.products,data.metals).rows.some(p=>p.id===id));
+});
+test('Duplicate numbers across the three gold coin categories are rejected',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
+ config.entries['gold-russia-5-ruble'].number=1;
+ assert.throws(()=>validateBoard(config,config,data.products),/Powtórzony numer/);
+});
+test('Separate sections can reuse numbers and negative markup is rejected',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
+ assert.doesNotThrow(()=>validateBoard(config,config,data.products));
+ config.entries['gold-bar-1g'].sellPercent=-2;assert.throws(()=>validateBoard(config,config,data.products),/Narzut/);
+});
+test('Stale writes are rejected and previous board settings are backed up',async()=>{
+ const {call,login,store}=instance(),cookie=await login(),headers={cookie};
+ const {config}=await(await call('/api/admin/board',{headers})).json();
+ let r=await call('/api/admin/board',{method:'PUT',headers,body:JSON.stringify(config)});assert.equal(r.status,200);const saved=(await r.json()).config;
+ r=await call('/api/admin/board',{method:'PUT',headers,body:JSON.stringify(config)});assert.equal(r.status,409);
+ saved.deliveryDays=12;r=await call('/api/admin/board',{method:'PUT',headers,body:JSON.stringify(saved)});assert.equal(r.status,200);
+ assert.ok([...store.keys()].some(k=>k.startsWith('backup:board:')));
+});
+test('Scrap sale is per gram of alloy, delivery prohibited for historical coins',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
+ config.entries['scrap-585'].sell=true;config.entries['scrap-585'].sellPercent=2;
+ config.entries['gold-russia-5-ruble'].delivery=true;
+ const validated=validateBoard(config,config,data.products),board=buildBoard(validated,data.products,data.metals);
+ assert.equal(board.rows.find(p=>p.id==='scrap-585').sell,59.67);
+ assert.equal(board.rows.find(p=>p.id==='gold-russia-5-ruble').delivery,null);
+});
+test('A whole family can move to another gold category without renumbering its weights',async()=>{
+ const {call}=instance(),data=await(await call('/api/prices')).json(),config=mergeBoard(null,data.products,data.metals);
+ for(const entry of Object.values(config.entries))if(entry.family==='gold-family-krugerrand')entry.section='other';
+ const board=buildBoard(validateBoard(config,config,data.products),data.products,data.metals);
+ const rows=board.rows.filter(r=>r.family==='gold-family-krugerrand');assert.equal(rows.length,4);assert.ok(rows.every(r=>r.section==='other'&&r.number===1));
+});
