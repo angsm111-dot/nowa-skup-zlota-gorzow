@@ -8,7 +8,7 @@
   const footerMessage=document.createElement('span');footerMessage.id='board-save-status';footerMessage.setAttribute('role','status');footerMessage.setAttribute('aria-live','polite');footerMessage.hidden=true;
   const boardActions=document.createElement('div');boardActions.id='board-footer-actions';boardActions.append(saveButton,footerMessage);
   panel.querySelector(':scope > footer').insertBefore(boardActions,document.querySelector('#save'));
-  let state=null, savedState=null, products={}, boardMetals={}, selected='bullion', changed=false;
+  let state=null, savedState=null, products={}, boardMetals={}, selected='bullion', changed=false, savePhase='';
   const allOption=document.createElement('option');allOption.value='all';allOption.textContent='Wszystkie produkty';container.querySelector('#board-section').append(allOption);
   const find=id=>container.querySelector('#'+id);
   for(const [key,title] of Object.entries(titles)){const option=document.createElement('option');option.value=key;option.textContent=title;find('board-section').append(option)}
@@ -43,9 +43,15 @@
     }
   }
   function assignCoinNumber(){renumberBars()}
+  function updateSaveButton(){
+    saveButton.disabled=!!savePhase;
+    saveButton.classList.toggle('is-publishing',savePhase==='saving');
+    saveButton.classList.toggle('is-published',savePhase==='saved');
+    saveButton.setAttribute('aria-busy',String(savePhase==='saving'));
+    saveButton.textContent=savePhase==='saving'?'Zapisuję…':savePhase==='saved'?'Zapisano ✓':selected==='all'?'Zapisz tablicę — wszystkie sekcje':'Zapisz tablicę — '+titles[selected].toLocaleLowerCase('pl-PL');
+  }
   function render(){
-    renumberBars();
-    saveButton.textContent=selected==='all'?'Zapisz tablicę — wszystkie sekcje':'Zapisz tablicę — '+titles[selected].toLocaleLowerCase('pl-PL');
+    renumberBars();updateSaveButton();
     find('board-days').value=state.deliveryDays;
     const opts=find('board-section-options');opts.replaceChildren();
     if(selected!=='all')for(const [key,label] of Object.entries({visible:'Pokaż sekcję',buy:'Pokaż skup',sell:'Pokaż sprzedaż',...(['bullion','goldBars'].includes(selected)?{delivery:'Przyjmuj zamówienia z dostawą'}:{})}))opts.append(check(label,state.sections[selected][key],v=>{state.sections[selected][key]=v;render()}));
@@ -95,7 +101,8 @@
   find('board-days').onchange=e=>{if(e.target.checkValidity()){state.deliveryDays=Number(e.target.value);changed=true;message('Zapisz nowy termin dostawy.')}else e.target.reportValidity()};
   saveButton.onclick=async()=>{
     if(!state||![...container.querySelectorAll('input')].every(e=>e.reportValidity()))return;
-    saveButton.disabled=true;
+    if(savePhase)return;
+    savePhase='saving';updateSaveButton();
     const payload=selected==='all'?structuredClone(state):structuredClone(savedState);
     if(selected!=='all'){
       payload.deliveryDays=state.deliveryDays;
@@ -108,7 +115,9 @@
       for(const key of ['entries','sections'])for(const [id,value] of Object.entries(local[key]))if(JSON.stringify(value)!==JSON.stringify(payload[key][id]))state[key][id]=value;
       changed=JSON.stringify(state)!==JSON.stringify(savedState);render();
       message('Zapisano '+(selected==='all'?'wszystkie sekcje':titles[selected])+'.'+(changed?' W pozostałych sekcjach są niezapisane zmiany.':' Tablica pobierze zmiany przy najbliższym odświeżeniu.'));
-    }catch(e){message('Nie zapisano: '+e.message)}finally{saveButton.disabled=false}
+      savePhase='saved';updateSaveButton();
+      setTimeout(()=>{savePhase='';updateSaveButton()},1800);
+    }catch(e){savePhase='';updateSaveButton();message('Nie zapisano: '+e.message)}
   };
   window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue=''}});
 })();

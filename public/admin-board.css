@@ -7,3 +7,5 @@ main>footer{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
 .board-admin .board-move{padding:6px 10px;margin:0 4px 4px 0;font-size:12px;white-space:nowrap;line-height:1;border:1px solid #aaa;border-radius:4px;background:#fff}.board-admin .board-move:disabled{opacity:.3;cursor:default}#board-close{margin-left:8px}.board-admin table{min-width:1500px}
 
 .board-admin .board-next-number{display:block;margin-top:6px;padding:5px 7px;font-size:11px;border:1px solid #bbb;border-radius:4px;background:#fff;white-space:nowrap}
+
+#board-save.is-publishing{animation:publishing-pulse .7s ease-in-out infinite}#board-save.is-published{background:#2c8a56;color:#fff;transform:scale(1.03)}#board-save:disabled{cursor:wait}
