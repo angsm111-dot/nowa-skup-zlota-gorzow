@@ -29,9 +29,10 @@ export function boardDefaults(products, metals) {
     if (group==='goldBars') {const ids=['gold-bar-1g','gold-bar-2-5g','gold-bar-5g','gold-bar-10g','gold-bar-20g','gold-bar-31-1035g','gold-bar-50g','gold-bar-100g'];const i=ids.indexOf(p.id);number=i>=0?i+1:ids.length+index+1;label=p.id==='gold-bar-31-1035g'?'1 oz':String(p.grossWeight).replace('.',',')+' g';}
     if (group==='silverBars') {label=p.grossWeight===31.1035?'1 oz':String(p.grossWeight).replace('.',',')+' g';}
     if (p.custom) visible=false;
-    entries[p.id]={section,number,label,family,weight,visible,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
+    const order=['goldBars','silverBars'].includes(section)?Math.round(p.grossWeight*1000):number*1000;
+    entries[p.id]={section,order,number,label,family,weight,visible,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
   }
-  for(const [index,purity] of Object.keys(metals.gold.purities).entries()) entries['scrap-'+purity]={section:'scrap',number:index+1,label:'Próba '+purity,family:'scrap-'+purity,weight:'',visible:true,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
+  for(const [index,purity] of Object.keys(metals.gold.purities).entries()) entries['scrap-'+purity]={section:'scrap',order:(index+1)*1000,number:index+1,label:'Próba '+purity,family:'scrap-'+purity,weight:'',visible:true,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
   return {version:1,deliveryDays:10,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{visible:true,buy:true,sell:true,delivery:true}])),entries};
 }
 export function mergeBoard(stored, products, metals) {
@@ -53,7 +54,7 @@ export function validateBoard(input, current, products) {
     const v=input.entries[id]||previous,group=groups.get(id);
     const allowed=id.startsWith('scrap-')?['scrap']:group==='goldCoins'?['bullion','historical','other']:[group];
     if(!allowed.includes(v.section))fail('Niewłaściwa sekcja produktu '+id);
-    const entry={section:v.section,number:integer(v.number,1,9999,'Numer gablotowy: od 1 do 9999'),label:clean(v.label),family:clean(v.family),weight:clean(v.weight),visible:boolean(v.visible),buy:boolean(v.buy),sell:boolean(v.sell),delivery:boolean(v.delivery),sellPercent:percent(v.sellPercent),deliveryPercent:percent(v.deliveryPercent)};
+    const entry={section:v.section,order:integer(v.order??previous.order,0,1000000000,'Nieprawidłowa kolejność'),number:integer(v.number,1,9999,'Numer gablotowy: od 1 do 9999'),label:clean(v.label),family:clean(v.family),weight:clean(v.weight),visible:boolean(v.visible),buy:boolean(v.buy),sell:boolean(v.sell),delivery:boolean(v.delivery),sellPercent:percent(v.sellPercent),deliveryPercent:percent(v.deliveryPercent)};
     if(!entry.label||!entry.family)fail('Uzupełnij nazwę i identyfikator rodziny');
     if(!['bullion','goldBars'].includes(entry.section))entry.delivery=false;
     if(entry.visible){
@@ -80,8 +81,8 @@ export function buildBoard(config, products, metals) {
     const buy=purity?metals.gold.purities[purity]?.price:p.price;
     const valid=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
     const price=(enabled,value)=>enabled&&valid(value)?Math.round(value*100)/100:null;
-    rows.push({id,section:entry.section,number:entry.number,label:entry.label,family:entry.family,weight:entry.weight,buy:price(entry.buy&&section.buy,buy),sell:price(entry.sell&&section.sell,base*(1+entry.sellPercent/100)),delivery:price(entry.delivery&&section.delivery&&['bullion','goldBars'].includes(entry.section),base*(1+entry.deliveryPercent/100)),fineWeight:p?.fineWeight??0});
+    rows.push({id,section:entry.section,order:entry.order??entry.number*1000,number:entry.number,label:entry.label,family:entry.family,weight:entry.weight,buy:price(entry.buy&&section.buy,buy),sell:price(entry.sell&&section.sell,base*(1+entry.sellPercent/100)),delivery:price(entry.delivery&&section.delivery&&['bullion','goldBars'].includes(entry.section),base*(1+entry.deliveryPercent/100)),fineWeight:p?.fineWeight??0});
   }
-  rows.sort((a,b)=>a.number-b.number||b.fineWeight-a.fineWeight||a.id.localeCompare(b.id));
+  rows.sort((a,b)=>a.order-b.order||a.number-b.number||b.fineWeight-a.fineWeight||a.id.localeCompare(b.id));
   return {version:1,deliveryDays:config.deliveryDays,sections:config.sections,updatedAt:config.updatedAt??null,rows};
 }

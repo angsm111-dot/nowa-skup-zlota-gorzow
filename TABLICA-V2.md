@@ -47,3 +47,9 @@ Brakujące produkty, stare ręczne ceny sprzedaży i dane WordPressa nie został
 Przycisk zapisu tablicy znajduje się na dolnej belce obok publikacji cennika. Zapisuje wybraną sekcję (wraz z przeniesionymi z niej produktami i terminem dostawy); dla widoku „Wszystkie produkty” zapisuje wszystkie sekcje. Niezapisane zmiany innych sekcji są zachowane w edytorze.
 
 Test przeglądarkowy obejmuje zapis sekcji bez zapisywania zmian z innej sekcji oraz włączenie Kangura 1/20 i 1/25 oz, gdy te wagi pozostają ukryte na dotychczasowych stronach. Tablica ma większe dekoracyjne ilustracje sekcji na przezroczystym tle; nie są zdjęciami konkretnych egzemplarzy z oferty.
+
+## Zamykanie i kolejność pozycji
+
+Obok otwierania ustawień jest przycisk zamknięcia. Zamknięcie zachowuje niezapisane zmiany w otwartym panelu; przy ponownym otwarciu edycja jest przywracana. Nie oznacza to zapisania do serwera.
+
+Kolejność tablicy jest osobnym polem `order`, niezależnym od numeru gablotowego i kolejności głównego katalogu. Starsze konfiguracje bez `order` otrzymują domyślną kolejność: sztabki od najmniejszej masy, pozostałe sekcje według numerów. Przyciski ↑/↓ przesuwają pozycję wewnątrz sekcji, a dla monet — całą grupę wag. Zapis wybranej sekcji utrwala kolejność. API i tablica zachowują tę samą kolejność. Numery i ceny nie zmieniają się podczas przesuwania.

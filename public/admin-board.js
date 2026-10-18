@@ -2,7 +2,7 @@
   const titles={bullion:'Złote monety bulionowe',historical:'Złote monety historyczne',other:'Złote monety pozostałe',goldBars:'Złote sztabki LBMA',scrap:'Złom złota',silverCoins:'Srebrne monety',silverBars:'Srebrne sztabki'};
   const panel=document.querySelector('#panel'), container=document.createElement('section');
   container.className='board-admin';
-  container.innerHTML='<h2>Tablica w lokalu</h2><p>Osobne ustawienia tablicy. Ceny skupu na dotychczasowych stronach pozostają bez zmian. Sprzedaż i dostawa = wartość czystego kruszcu według spot + narzut.</p><button type="button" id="board-load">Otwórz ustawienia tablicy</button><div id="board-editor" hidden><label>Termin dostawy (dni) <input id="board-days" type="number" min="1" max="365" required></label><p>Wspólna numeracja trzech sekcji złotych monet. Wagi jednej monety mają wspólny numer i nazwę. Pozostałe sekcje mają własną numerację.</p><label>Sekcja <select id="board-section"></select></label><label>Szukaj produktu <input id="board-search" type="search" placeholder="np. Krugerrand 1 oz"></label><div id="board-section-options"></div><div class="board-table-wrap"><table><thead><tr><th>Produkt w katalogu</th><th>Na tablicy</th><th>Kategoria</th><th>Numer</th><th>Nazwa na tablicy</th><th>Grupa monety / waga</th><th>Skup</th><th>Sprzedaż / narzut</th><th>Dostawa / narzut</th></tr></thead><tbody id="board-rows"></tbody></table></div></div><p id="board-message" role="status" aria-live="polite"></p>';
+  container.innerHTML='<h2>Tablica w lokalu</h2><p>Osobne ustawienia tablicy. Ceny skupu na dotychczasowych stronach pozostają bez zmian. Sprzedaż i dostawa = wartość czystego kruszcu według spot + narzut.</p><button type="button" id="board-load" aria-controls="board-editor" aria-expanded="false">Otwórz ustawienia tablicy</button> <button type="button" id="board-close" disabled>Zamknij ustawienia tablicy</button><div id="board-editor" hidden><label>Termin dostawy (dni) <input id="board-days" type="number" min="1" max="365" required></label><p>Wspólna numeracja trzech sekcji złotych monet. Wagi jednej monety mają wspólny numer i nazwę. Pozostałe sekcje mają własną numerację.</p><label>Sekcja <select id="board-section"></select></label><label>Szukaj produktu <input id="board-search" type="search" placeholder="np. Krugerrand 1 oz"></label><div id="board-section-options"></div><div class="board-table-wrap"><table><thead><tr><th>Produkt w katalogu</th><th>Kolejność</th><th>Na tablicy</th><th>Kategoria</th><th>Numer</th><th>Nazwa na tablicy</th><th>Grupa monety / waga</th><th>Skup</th><th>Sprzedaż / narzut</th><th>Dostawa / narzut</th></tr></thead><tbody id="board-rows"></tbody></table></div></div><p id="board-message" role="status" aria-live="polite"></p>';
   panel.querySelector('#tabs').before(container);
   const saveButton=document.createElement('button');saveButton.type='button';saveButton.id='board-save';saveButton.hidden=true;
   const footerMessage=document.createElement('span');footerMessage.id='board-save-status';footerMessage.setAttribute('role','status');footerMessage.setAttribute('aria-live','polite');footerMessage.hidden=true;
@@ -16,6 +16,22 @@
   async function request(method,body){const r=await fetch('/api/admin/board',{method,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(data.error||'Błąd serwera');return data}
   function input(value,type,change,label){const e=document.createElement('input');e.type=type;e.setAttribute('aria-label',label);if(type==='checkbox')e.checked=value;else e.value=value;e.addEventListener('change',()=>{if(!e.checkValidity()){e.reportValidity();return}change(type==='checkbox'?e.checked:type==='number'?Number(e.value):e.value.trim());changed=true;message('Masz niezapisane ustawienia tablicy.');});return e}
   function check(label,value,callback){const e=document.createElement('label');e.append(input(value,'checkbox',callback,label),document.createTextNode(' '+label));return e}
+  const entryOrder=entry=>entry.order??entry.number*1000;
+  const unitKey=(id,entry)=>['bullion','historical','other'].includes(entry.section)?entry.family:id;
+  function unitsInSection(section){
+    const units=new Map();
+    for(const [id,entry] of Object.entries(state.entries).filter(([,e])=>e.section===section).sort((a,b)=>entryOrder(a[1])-entryOrder(b[1])||a[1].number-b[1].number)){
+      const key=unitKey(id,entry);if(!units.has(key))units.set(key,[]);units.get(key).push(id);
+    }
+    return [...units.values()];
+  }
+  function moveEntry(id,direction){
+    const entry=state.entries[id],units=unitsInSection(entry.section),index=units.findIndex(ids=>ids.includes(id)),target=index+direction;
+    if(target<0||target>=units.length)return;
+    [units[index],units[target]]=[units[target],units[index]];
+    units.forEach((ids,index)=>ids.forEach(key=>state.entries[key].order=index*1000));
+    changed=true;render();message('Zmieniono kolejność. Numery gablotowe pozostają bez zmian. Zapisz sekcję na dolnej belce.');
+  }
   function render(){
     saveButton.textContent=selected==='all'?'Zapisz tablicę — wszystkie sekcje':'Zapisz tablicę — '+titles[selected].toLocaleLowerCase('pl-PL');
     find('board-days').value=state.deliveryDays;
@@ -23,10 +39,12 @@
     if(selected!=='all')for(const [key,label] of Object.entries({visible:'Pokaż sekcję',buy:'Pokaż skup',sell:'Pokaż sprzedaż',...(['bullion','goldBars'].includes(selected)?{delivery:'Przyjmuj zamówienia z dostawą'}:{})}))opts.append(check(label,state.sections[selected][key],v=>state.sections[selected][key]=v));
     const body=find('board-rows');body.replaceChildren();
     const query=find('board-search').value.trim().toLocaleLowerCase('pl-PL');
-    Object.entries(state.entries).filter(([id,v])=>(query||selected==='all'||v.section===selected)&&(!query||(products[id]?.name+' '+v.label+' '+v.weight).toLocaleLowerCase('pl-PL').includes(query))).sort((a,b)=>a[1].number-b[1].number).forEach(([id,entry])=>{
-      const tr=document.createElement('tr');
+    Object.entries(state.entries).filter(([id,v])=>(query||selected==='all'||v.section===selected)&&(!query||(products[id]?.name+' '+v.label+' '+v.weight).toLocaleLowerCase('pl-PL').includes(query))).sort((a,b)=>entryOrder(a[1])-entryOrder(b[1])||a[1].number-b[1].number||(products[b[0]]?.fineWeight??0)-(products[a[0]]?.fineWeight??0)).forEach(([id,entry])=>{
+      const tr=document.createElement('tr');tr.dataset.boardId=id;
       const cell=(...children)=>{const td=document.createElement('td');td.append(...children);tr.append(td);return td};
       const productCell=cell(document.createTextNode(products[id]?.name||entry.label));if(products[id]?.active===false){const note=document.createElement('small');note.textContent='Ukryty na pozostałych stronach. Widoczność na tablicy ustawiasz osobno.';productCell.append(note)}
+      const units=unitsInSection(entry.section),position=units.findIndex(ids=>ids.includes(id));
+      const buttons=[[-1,'↑ Wyżej','Przesuń wyżej'],[1,'↓ Niżej','Przesuń niżej']].map(([step,text,title])=>{const b=document.createElement('button');b.type='button';b.className='board-move';b.textContent=text;b.setAttribute('aria-label',title+' — '+(products[id]?.name||entry.label));b.title=title+(['bullion','historical','other'].includes(entry.section)?' (cała grupa monety)':'');b.disabled=position+step<0||position+step>=units.length;b.onclick=()=>moveEntry(id,step);return b});cell(...buttons);
       cell(check('Pokaż',entry.visible,v=>entry.visible=v));
       const select=document.createElement('select');select.setAttribute('aria-label','Kategoria '+entry.label);
       const categories=['bullion','historical','other'].includes(entry.section)?['bullion','historical','other']:[entry.section];
@@ -53,7 +71,9 @@
       body.append(tr);
     });
   }
-  find('board-load').onclick=async()=>{try{message('Pobieranie…');const data=await request('GET');state=data.config;savedState=structuredClone(data.config);changed=false;saveButton.hidden=false;footerMessage.hidden=false;products=Object.fromEntries(Object.values(data.products).flat().map(p=>[p.id,p]));window.boardMetalSpot=data.metals.gold.spot;find('board-editor').hidden=false;render();message('Ustawienia pobrane. Wyłączenie ceny pokazuje kreskę, bez usuwania produktu.')}catch(e){message(e.message)}};
+  function openEditor(){find('board-editor').hidden=false;find('board-close').disabled=false;find('board-load').setAttribute('aria-expanded','true');saveButton.hidden=false;footerMessage.hidden=false;}
+  find('board-close').onclick=()=>{find('board-editor').hidden=true;find('board-close').disabled=true;find('board-load').setAttribute('aria-expanded','false');saveButton.hidden=true;footerMessage.hidden=true;message(changed?'Zamknięto ustawienia. Niezapisane zmiany zachowano do ponownego otwarcia.':'Ustawienia tablicy zamknięte.');};
+  find('board-load').onclick=async()=>{if(state&&changed){openEditor();render();message('Przywrócono niezapisane ustawienia.');return}try{message('Pobieranie…');const data=await request('GET');state=data.config;savedState=structuredClone(data.config);changed=false;saveButton.hidden=false;footerMessage.hidden=false;products=Object.fromEntries(Object.values(data.products).flat().map(p=>[p.id,p]));window.boardMetalSpot=data.metals.gold.spot;openEditor();render();message('Ustawienia pobrane. Wyłączenie ceny pokazuje kreskę, bez usuwania produktu.')}catch(e){message(e.message)}};
   find('board-search').oninput=()=>render();
   find('board-section').onchange=e=>{selected=e.target.value;render()};
   find('board-days').onchange=e=>{if(e.target.checkValidity()){state.deliveryDays=Number(e.target.value);changed=true;message('Zapisz nowy termin dostawy.')}else e.target.reportValidity()};
