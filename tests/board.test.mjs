@@ -91,15 +91,15 @@ test('Board visibility is independent of catalogue visibility, including small K
  assert.ok(!rows.some(r=>r.id===ids[0]));assert.ok(rows.some(r=>r.id===ids[1]));
  assert.equal(products.goldCoins.find(p=>p.id===ids[1]).active,false);
 });
-test('Half-gram bar precedes one gram without changing display numbers, even in legacy settings',async()=>{
+test('Visible bars start at one and follow the chosen order, even in legacy settings',async()=>{
  const {call}=instance(),data=await(await call('/api/prices')).json(),products=structuredClone(data.products);
  products.goldBars.push({id:'custom-half-gram',name:'Sztabka 0,5 g',metal:'gold',kind:'bar',custom:true,grossWeight:0.5,fineWeight:0.4995,marketValue:49.95,price:48});
  const legacy=mergeBoard(null,products,data.metals);for(const entry of Object.values(legacy.entries))delete entry.order;
  legacy.entries['custom-half-gram'].visible=true;legacy.entries['custom-half-gram'].number=25;
  const config=mergeBoard(legacy,products,data.metals),rows=buildBoard(config,products,data.metals).rows.filter(r=>r.section==='goldBars');
- assert.equal(rows[0].id,'custom-half-gram');assert.equal(rows[0].number,25);
+ assert.equal(rows[0].id,'custom-half-gram');assert.equal(rows[0].number,1);
  config.entries['gold-bar-100g'].order=0;
  const saved=validateBoard(config,config,products),reloaded=mergeBoard(saved,products,data.metals);
  assert.equal(buildBoard(reloaded,products,data.metals).rows.filter(r=>r.section==='goldBars')[0].id,'gold-bar-100g');
- assert.equal(reloaded.entries['custom-half-gram'].number,25);
+ assert.equal(reloaded.entries['custom-half-gram'].number,2);
 });

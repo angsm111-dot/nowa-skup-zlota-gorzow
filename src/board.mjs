@@ -6,6 +6,13 @@ const families = {
 };
 const history = ['germany-20-mark','denmark-20-kroner','austria-4-ducat','austria-1-ducat','russia-5-ruble','russia-10-ruble','russia-15-ruble','germany-10-mark','germany-5-mark','france-switzerland-20-franc','france-switzerland-10-franc'];
 const clean = value => String(value ?? '').trim().slice(0,120);
+export function renumberBars(config){
+  for(const section of ['goldBars','silverBars']){
+    const list=Object.entries(config.entries).filter(([,entry])=>entry.section===section).sort((a,b)=>Number(b[1].visible)-Number(a[1].visible)||(a[1].order??a[1].number*1000)-(b[1].order??b[1].number*1000)||a[0].localeCompare(b[0]));
+    list.forEach(([,entry],index)=>entry.number=index+1);
+  }
+  return config;
+}
 export function boardDefaults(products, metals) {
   const entries = {};
   for (const [group,list] of Object.entries(products)) for (const [index,p] of list.entries()) {
@@ -33,12 +40,12 @@ export function boardDefaults(products, metals) {
     entries[p.id]={section,order,number,label,family,weight,visible,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
   }
   for(const [index,purity] of Object.keys(metals.gold.purities).entries()) entries['scrap-'+purity]={section:'scrap',order:(index+1)*1000,number:index+1,label:'Próba '+purity,family:'scrap-'+purity,weight:'',visible:true,buy:true,sell:false,delivery:false,sellPercent:2,deliveryPercent:1};
-  return {version:1,deliveryDays:10,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{visible:true,buy:true,sell:true,delivery:true}])),entries};
+  return renumberBars({version:1,deliveryDays:10,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{visible:true,buy:true,sell:true,delivery:true}])),entries});
 }
 export function mergeBoard(stored, products, metals) {
   const defaults=boardDefaults(products,metals);
   if(!stored)return defaults;
-  return {...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries:Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>[id,{...value,...stored.entries?.[id]}]))};
+  return renumberBars({...defaults,deliveryDays:stored.deliveryDays??10,updatedAt:stored.updatedAt??null,sections:Object.fromEntries(BOARD_SECTIONS.map(key=>[key,{...defaults.sections[key],...stored.sections?.[key]}])),entries:Object.fromEntries(Object.entries(defaults.entries).map(([id,value])=>[id,{...value,...stored.entries?.[id]}]))});
 }
 export function validateBoard(input, current, products) {
   const fail=message=>{throw Error(message)};
@@ -60,7 +67,7 @@ export function validateBoard(input, current, products) {
     if(entry.visible){
       const scope=['bullion','historical','other'].includes(entry.section)?'goldCoins':entry.section;
       const key=scope+':'+entry.number, owner=scope==='goldCoins'?entry.family:id;
-      if(numbers.has(key)&&numbers.get(key)!==owner)fail('Powtórzony numer gablotowy '+entry.number);
+      if(!['goldBars','silverBars'].includes(scope)&&numbers.has(key)&&numbers.get(key)!==owner)fail('Powtórzony numer gablotowy '+entry.number);
       numbers.set(key,owner);
       if(scope==='goldCoins'){
         const signature=entry.section+'|'+entry.number+'|'+entry.label;
@@ -70,7 +77,7 @@ export function validateBoard(input, current, products) {
     }
     result.entries[id]=entry;
   }
-  return result;
+  return renumberBars(result);
 }
 export function buildBoard(config, products, metals) {
   const lookup=new Map(Object.values(products).flat().map(p=>[p.id,p])), rows=[];
@@ -84,5 +91,6 @@ export function buildBoard(config, products, metals) {
     rows.push({id,section:entry.section,order:entry.order??entry.number*1000,number:entry.number,label:entry.label,family:entry.family,weight:entry.weight,buy:price(entry.buy&&section.buy,buy),sell:price(entry.sell&&section.sell,base*(1+entry.sellPercent/100)),delivery:price(entry.delivery&&section.delivery&&['bullion','goldBars'].includes(entry.section),base*(1+entry.deliveryPercent/100)),fineWeight:p?.fineWeight??0});
   }
   rows.sort((a,b)=>a.order-b.order||a.number-b.number||b.fineWeight-a.fineWeight||a.id.localeCompare(b.id));
+  const counts={goldBars:0,silverBars:0};for(const row of rows)if(row.section in counts)row.number=++counts[row.section];
   return {version:1,deliveryDays:config.deliveryDays,sections:config.sections,updatedAt:config.updatedAt??null,rows};
 }

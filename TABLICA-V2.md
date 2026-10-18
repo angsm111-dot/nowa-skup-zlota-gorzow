@@ -12,7 +12,7 @@ Sekcja **Tablica w lokalu** w `/admin` ma własny przycisk zapisu. Zapisuje `con
 
 - Kategorie złotych monet: bulionowe, historyczne, pozostałe. Zmiana kategorii grupy przenosi wszystkie jej wagi.
 - Wagi jednej monety mają wspólną grupę, nazwę i numer. Pozostałe sekcje mają własne numery.
-- Numery nie są indeksami widoku. Istniejące zapisane numery zostają po dodaniu nowych produktów.
+- Numery monet nie są indeksami widoku. Istniejące zapisane numery zostają po dodaniu nowych produktów.
 - Nowe produkty własne są początkowo ukryte na tablicy. Należy przypisać kategorię, numer i widoczność. Dotychczasowy cennik i kalkulator mają niezależną widoczność katalogową. Pozycję ukrytą w katalogu można pokazać na tablicy przełącznikiem „Pokaż”; nie zmienia to jej widoczności na innych stronach.
 - Osobne przełączniki skupu, sprzedaży i dostawy dla pozycji oraz sekcji.
 - Dostawa tylko dla bulionowych złotych monet i złotych sztabek; wspólny edytowalny termin.
@@ -52,4 +52,6 @@ Test przeglądarkowy obejmuje zapis sekcji bez zapisywania zmian z innej sekcji 
 
 Obok otwierania ustawień jest przycisk zamknięcia. Zamknięcie zachowuje niezapisane zmiany w otwartym panelu; przy ponownym otwarciu edycja jest przywracana. Nie oznacza to zapisania do serwera.
 
-Kolejność tablicy jest osobnym polem `order`, niezależnym od numeru gablotowego i kolejności głównego katalogu. Starsze konfiguracje bez `order` otrzymują domyślną kolejność: sztabki od najmniejszej masy, pozostałe sekcje według numerów. Przyciski ↑/↓ przesuwają pozycję wewnątrz sekcji, a dla monet — całą grupę wag. Zapis wybranej sekcji utrwala kolejność. API i tablica zachowują tę samą kolejność. Numery i ceny nie zmieniają się podczas przesuwania.
+Kolejność tablicy jest osobnym polem `order`, niezależnym od numeru gablotowego i kolejności głównego katalogu. Starsze konfiguracje bez `order` otrzymują domyślną kolejność: sztabki od najmniejszej masy, pozostałe sekcje według numerów. Przyciski ↑/↓ przesuwają pozycję wewnątrz sekcji, a dla monet — całą grupę wag. Zapis wybranej sekcji utrwala kolejność. API i tablica zachowują tę samą kolejność. Numery monet i ceny nie zmieniają się podczas przesuwania. Numery widocznych sztabek są automatycznie dopasowywane do kolejności: 1, 2, 3…; ukryte sztabki nie zostawiają luk.
+
+Numer sztabki w panelu jest tylko do odczytu — wynika z kolejności, nie wymaga ręcznego wpisywania. Dotyczy osobno sztabek złota i srebra. Zmiana kolejności lub widoczności przelicza ich numery, bez zmiany cen.
