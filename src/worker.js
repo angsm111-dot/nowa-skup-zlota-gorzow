@@ -89,13 +89,7 @@ export default {
     const publicRoute=PUBLIC_ROUTES[url.pathname.replace(/\/$/,"")];
     if(publicRoute&&request.method==="GET")return Response.redirect(`${url.origin}/#${publicRoute}`,302);
     if(url.pathname==="/api/admin/board" && ["GET","PUT"].includes(request.method))return adminBoard(request,env,ctx);
-    if(url.pathname==="/api/prices"&&request.method==="GET"){
-      const response=await publicPrices(env,ctx);
-      // Only the already-public price feed is readable across website origins.
-      const headers=new Headers(response.headers);
-      headers.set("access-control-allow-origin","*");
-      return new Response(response.body,{status:response.status,headers});
-    }
+    if(url.pathname==="/api/prices"&&request.method==="GET")return publicPrices(env,ctx);
     if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
     if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout();
     if(url.pathname==="/api/admin/config"&&request.method==="GET")return adminGet(request,env);
