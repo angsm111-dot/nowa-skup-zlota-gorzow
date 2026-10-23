@@ -42,3 +42,8 @@ Potrzebne informacje od dostawcy:
 - Panel: https://skup-zlota-gorzow.angsm111.workers.dev/admin
 
 Zmiana nazwy repozytorium nie oznacza zmiany nazwy Workera ani adresu strony. Przed pracą na lokalnej kopii należy pobrać aktualną gałąź `main`.
+
+## Zewnętrzny kalkulator SEZAM LAB
+Publiczny GET `/api/prices` udostępnia nagłówek CORS `Access-Control-Allow-Origin: *` dla statycznej witryny `angsm111-dot/spektrometriagorzow`. Dotyczy to wyłącznie publicznego cennika bez uwierzytelnienia; trasy administracyjne zachowują dotychczasową ochronę. Kalkulator odczytuje gotowe `metals.gold.purities[próba].price`, bez ponownego naliczania potrąceń.
+
+Po wdrożeniu Workera sprawdź odczyt API z zewnętrznej witryny oraz zgodność ceny z panelem. Zapis do GitHuba nie jest dowodem wdrożenia do Cloudflare. Testy: `node --test tests/prices-cors.test.mjs tests/board.test.mjs`.
